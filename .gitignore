@@ -26,3 +26,16 @@
 *.exe
 *.out
 *.app
+
+*.png
+
+# Ignore backup files
+*~
+*.cfgc
+
+# Ignore txt files
+*.txt
+*.xml
+*.csv
+*.cbp
+*.asv
