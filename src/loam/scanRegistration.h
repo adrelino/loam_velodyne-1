@@ -33,8 +33,7 @@ public:
     const double deg2rad = PI / 180;
 
     double initTime;
-    double timeStart;
-    double timeLasted;
+
     bool systemInited = false;
 
     double timeScanCur = 0;
@@ -102,6 +101,9 @@ public:
     void imuHandler(const sensor_msgs::Imu::ConstPtr& imuIn);
     scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::Publisher * pubLaserCloudLast);
 
+private:
+    double timeStart;
+    double timeLasted;
 
 
 };
