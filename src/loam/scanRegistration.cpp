@@ -124,7 +124,7 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
         laserPointIn.h = timeLasted;
         laserPointIn.v = 0;
 
-        if (!(fabs(laserPointIn.x) < 0.5 && fabs(laserPointIn.y) < 0.5 && fabs(laserPointIn.z) < 0.5))
+        if (!(fabs(laserPointIn.x) < 0.5 && fabs(laserPointIn.y) < 0.5 && fabs(laserPointIn.z) < 0.5) & cloudSize<CLOUD)
         {
             laserCloud->push_back(laserPointIn);
             cloudSortInd[cloudSize] = cloudSize;
@@ -614,5 +614,9 @@ scanRegistration::scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::
     //      ros::spin();
 
     //      return 0;
+
+    timeStart = 0;
+    timeLasted = 0;
+
 }
 }

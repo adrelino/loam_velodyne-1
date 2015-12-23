@@ -25,6 +25,8 @@
 namespace scanRegistration
 {
 
+#define CLOUD 1200 // cloudSortInd and cloudSortInd
+
 class scanRegistration
 {
 public:
@@ -52,9 +54,6 @@ public:
 
     ros::Publisher* pubLaserCloudExtreCurPointer;
     ros::Publisher* pubLaserCloudLastPointer;
-
-    int cloudSortInd[1200];
-    int cloudNeighborPicked[1200];
 
     int imuPointerFront = 0;
     int imuPointerLast = -1;
@@ -105,7 +104,8 @@ private:
     double timeStart;
     double timeLasted;
 
-
+    int cloudSortInd[CLOUD];
+    int cloudNeighborPicked[CLOUD];
 };
 
 }
