@@ -108,6 +108,7 @@ private:
     int cloudNeighborPicked[CLOUD];
 
     int createInsidePC(const pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud);
+    float calcLaserAngle(const pcl::PointXYZ laserPointFirst, const pcl::PointXYZ inLaserPointLast);
 };
 
 }

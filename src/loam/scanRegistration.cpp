@@ -117,24 +117,7 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud(new pcl::PointCloud<pcl::PointXYZHSV>());
     int cloudSize = createInsidePC(laserCloudIn,laserCloud);
 
-
-
-    pcl::PointXYZ laserPointFirst = laserCloudIn->points[0];
-    pcl::PointXYZ laserPointLast = laserCloudIn->points[cloudInSize - 1];
-
-    float rangeFirst = sqrt(laserPointFirst.x * laserPointFirst.x + laserPointFirst.y * laserPointFirst.y
-                            + laserPointFirst.z * laserPointFirst.z);
-    laserPointFirst.x /= rangeFirst;
-    laserPointFirst.y /= rangeFirst;
-    laserPointFirst.z /= rangeFirst;
-
-    float rangeLast = sqrt(laserPointLast.x * laserPointLast.x + laserPointLast.y * laserPointLast.y
-                           + laserPointLast.z * laserPointLast.z);
-    laserPointLast.x /= rangeLast;
-    laserPointLast.y /= rangeLast;
-    laserPointLast.z /= rangeLast;
-
-    float laserAngle = atan2(laserPointLast.x - laserPointFirst.x, laserPointLast.y - laserPointFirst.y);
+    float laserAngle = calcLaserAngle(laserCloudIn->points[0],laserCloudIn->points[cloudInSize - 1]);
 
     bool newSweep = false;
     if (laserAngle * laserRotDir < 0 && timeLasted - timeStart > 0.7) {
@@ -628,4 +611,27 @@ int scanRegistration::createInsidePC(const pcl::PointCloud<pcl::PointXYZ>::Ptr l
     }
     return cloudSize;
 }
+
+float scanRegistration::calcLaserAngle(const pcl::PointXYZ inLaserPointFirst, const pcl::PointXYZ inLaserPointLast)
+{
+    pcl::PointXYZ laserPointFirst = inLaserPointFirst;
+    pcl::PointXYZ laserPointLast = inLaserPointLast;
+    float rangeFirst = sqrt(laserPointFirst.x * laserPointFirst.x + laserPointFirst.y * laserPointFirst.y
+                            + laserPointFirst.z * laserPointFirst.z);
+    laserPointFirst.x /= rangeFirst;
+    laserPointFirst.y /= rangeFirst;
+    laserPointFirst.z /= rangeFirst;
+
+    float rangeLast = sqrt(laserPointLast.x * laserPointLast.x + laserPointLast.y * laserPointLast.y
+                           + laserPointLast.z * laserPointLast.z);
+    laserPointLast.x /= rangeLast;
+    laserPointLast.y /= rangeLast;
+    laserPointLast.z /= rangeLast;
+
+    float laserAngle = atan2(laserPointLast.x - laserPointFirst.x, laserPointLast.y - laserPointFirst.y);
+    return laserAngle;
 }
+
+
+}
+
