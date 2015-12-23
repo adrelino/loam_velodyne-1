@@ -28,96 +28,76 @@ struct data
 
 int main( int argc, char** argv )
 {
-    ros::init(argc, argv, "LOAM");
+    ros::init(argc, argv, "KITTI");
 
-    // get data from rosbag file
-    rosbag::Bag bag;
-    bag.open("/home/sebastian/Dropbox/aria/Zhang_data_for_loam/robot_city_bridge/robot_city_bridge.bag", rosbag::bagmode::Read);
 
-    std::vector<std::string> topics;
-    topics.push_back(std::string("/sync_scan_cloud_filtered"));
-    rosbag::View view(bag, rosbag::TopicQuery(topics));
+    KITTI kitti;
 
-    // extract data from bag file
-    std::vector<sensor_msgs::PointCloud2Ptr> vec_lidar;
-    ros::NodeHandle nh;
-    ros::Publisher pubLaserOdometry2 = nh.advertise<nav_msgs::Odometry> ("/cam_to_init_2", 5);
-    ros::Publisher pubOdomBefMapped = nh.advertise<nav_msgs::Odometry> ("/bef_mapped_to_init_2", 5);
-    ros::Publisher pubOdomAftMapped = nh.advertise<nav_msgs::Odometry> ("/aft_mapped_to_init_2", 5);
-    ros::Publisher pubLaserCloudSurround = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surround", 1);
-    ros::Publisher pubLaserCloudExtreCur = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_extre_cur", 2);
-    ros::Publisher pubLaserCloudLast = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_last", 2);
-    ros::Publisher pubLaserOdometry = nh.advertise<nav_msgs::Odometry> ("/cam_to_init", 5);
-    ros::Publisher pubLaserCloudLast2 = nh.advertise<sensor_msgs::PointCloud2> ("/laser_cloud_last_2", 2);
+    loam_wrapper loam;
 
-    ros::Publisher pubLaserInput = nh.advertise<sensor_msgs::PointCloud2> ("/input", 5);
-
-    // Transform Maintance
-    tf::TransformBroadcaster tfBroadcaster2;
-    transformMaintenance::transformMaintenance transformMain(&pubLaserOdometry2,&tfBroadcaster2);
-
-    // Laser Mapping
-    laserMapping::laserMapping laserMap(&pubOdomBefMapped,&pubOdomAftMapped,&pubLaserCloudSurround);
-
-    // Scan Registration
-    scanRegistration::scanRegistration scanReg(&pubLaserCloudExtreCur,&pubLaserCloudLast);
-
-    // Laser Odometry
-    tf::TransformBroadcaster tfBroadcaster;
-    tf::StampedTransform laserOdometryTrans;
-    laserOdometry::laserOdometry laserOd(&tfBroadcaster,&laserOdometryTrans,&pubLaserOdometry,&pubLaserCloudLast2);
-
-    foreach(rosbag::MessageInstance const m, view)
+    sensor_msgs::PointCloud2 pc;
+    for (int i=0; i<kitti.velpoints.size();i++)
     {
-        sensor_msgs::PointCloud2Ptr pc = m.instantiate<sensor_msgs::PointCloud2>();
-        if (pc != NULL)
-        {
-             pubLaserInput.publish(pc);
+        kitti.getPointCloud2(pc);
+        sleep(4);
 
-            // Registration
-            sensor_msgs::PointCloud2 outExtreCur2;
-            sensor_msgs::PointCloud2 outCloudLast2;
-            scanReg.laserCloudHandler(pc,outExtreCur2,outCloudLast2);
-            if(outCloudLast2.width>0)
-            {
-                laserOd.laserCloudLastHandler(outCloudLast2);
-                outCloudLast2.fields[3].name = "intensity";
-            }
-            if(outExtreCur2.width>0)
-            {
-                laserOd.laserCloudExtreCurHandler(outExtreCur2);
-            }
+        loam.publishInput(pc);
 
+       // sensor_msgs::PointCloud2Ptr pc_ptr(&pc);
 
-            // Laser Odometry
-            sensor_msgs::PointCloud2 pub;
-            nav_msgs::Odometry pubOdo;
-            laserOd.main_laserOdometry(pub, pubOdo);
+       // loam.newInPC(pc_ptr);
 
-
-            // Lasser Mapping
-            laserMap.laserOdometryHandler(pubOdo);
-
-            if (pub.width>0)
-                laserMap.laserCloudLastHandler(pub);
-
-
-
-            sensor_msgs::PointCloud2 laser_cloud_surround;
-            nav_msgs::Odometry odomBefMapped;
-            nav_msgs::Odometry odomAftMapped;
-            laserMap.loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
-
-            // maintanance
-            nav_msgs::Odometry outlaserOdometry2;
-
-            transformMain.odomAftMappedHandler(odomAftMapped);
-            transformMain.odomBefMappedHandler(odomBefMapped);
-            transformMain.laserOdometryHandler(pubOdo,outlaserOdometry2);
-
-        }
     }
 
-    bag.close();
+
+    //    Eigen::Matrix3Xd P0(3,4);
+    //    P0 = getP0();
+    //    Eigen::Matrix3Xd P2(3,4);
+    //    P2 = getP2();
+    //    Eigen::Matrix3Xd P_rect_02(3,4);
+    //    P_rect_02 = getP_rect_02();
+    //    Eigen::Matrix3f K=getK();
+
+
+
+    //    int num = 15;
+
+    //    std::vector<cv::Mat*> images_color;
+    //    std::vector<std::string> files;
+    //    getFiles(path_to_images_color, files);
+    //    getImagesColor(files, images_color,num);
+
+    //    std::vector<cv::Mat*> images_gray;
+    //    files.clear();
+    //    getFiles(path_to_images_gray, files);
+    //    getImages(files, images_gray,num);
+
+
+
+    //    std::vector<std::vector<veloPoint>> velpoints;
+    //    std::vector<std::string> velo_files;
+    //    getFiles(path_to_velo, velo_files);
+    //    getVel(velo_files,velpoints,num);
+
+    //    writeDepthToFile(velpoints[0]);
+
+
+    //    std::vector<SE3> poses;
+    //    std::vector<Eigen::Matrix3d> Rs;
+    //    std::vector<Eigen::Vector3d> ts;
+    //    //setCameraPoses(pathPoses,poses,Rs,ts);
+
+    //    Eigen::Matrix4d gt_pose,gt_pose_tb;
+
+    //    Eigen::Matrix4d gt_pose_cam,gt_pose_cam_tb;
+
+    //    Eigen::Matrix4d T_velo_to_cam = get_T_velo_to_cam();
+    //    Eigen::Matrix4d T_02 = getTrans02();
+    //    Eigen::Matrix4d T_velo_02 = T_02*T_velo_to_cam;
+    //    Eigen::Matrix4d imu_to_velo_T;
+    //    imu_to_velo_T = get_imu_to_velo_T();
+
+
+
     return 0;
 }

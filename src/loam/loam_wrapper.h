@@ -16,6 +16,8 @@ class loam_wrapper
 public:
     loam_wrapper();
 
+    void publishInput(sensor_msgs::PointCloud2 &pc);
+
     ros::NodeHandle nh;
     ros::Publisher pubLaserOdometry2;
     ros::Publisher pubOdomBefMapped;

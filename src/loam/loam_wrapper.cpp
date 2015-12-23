@@ -18,6 +18,13 @@ loam_wrapper::loam_wrapper()
     laserOd = new laserOdometry::laserOdometry(&tfBroadcaster,&laserOdometryTrans,&pubLaserOdometry,&pubLaserCloudLast2);
 }
 
+void loam_wrapper::publishInput(sensor_msgs::PointCloud2 &pc)
+{
+    pc.header.stamp = ros::Time();
+    pc.header.frame_id = "/camera_init_2";
+    pubLaserInput.publish(pc);
+}
+
 void loam_wrapper::newInPC(sensor_msgs::PointCloud2Ptr pc)
 {
     // Registration
