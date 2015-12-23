@@ -65,7 +65,7 @@ public:
 
     float transform[6] = {0};
     float transformRec[6] = {0};
-    float transformSum[6] = {0,0,0,0,0,0};
+    float transformSum[6] = {0};
 
     float imuRollStartCur = 0, imuPitchStartCur = 0, imuYawStartCur = 0;
     float imuRollCur = 0, imuPitchCur = 0, imuYawCur = 0;
@@ -404,16 +404,13 @@ public:
     tf::StampedTransform * laserOdometryTrans;
     ros::Publisher * pubLaserOdometry;
     ros::Publisher * pubLaserCloudLast2;
-    ros::Publisher * pub1;
-    float rx, ry, rz, tx, ty, tz;
 
-    laserOdometry(tf::TransformBroadcaster * tfBroadcaster,tf::StampedTransform * laserOdometryTrans, ros::Publisher * pubLaserOdometry, ros::Publisher * pubLaserCloudLast2,ros::Publisher * pub1)
+    laserOdometry(tf::TransformBroadcaster * tfBroadcaster,tf::StampedTransform * laserOdometryTrans, ros::Publisher * pubLaserOdometry, ros::Publisher * pubLaserCloudLast2)
     {
         this->tfBroadcaster = tfBroadcaster;
         this->laserOdometryTrans = laserOdometryTrans;
         this->pubLaserOdometry = pubLaserOdometry;
         this->pubLaserCloudLast2 = pubLaserCloudLast2;
-        this->pub1 = pub1;
         laserCloudExtreCur.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
         laserCloudExtreLast.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
         laserCloudExtreOri.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
@@ -941,12 +938,12 @@ public:
                 //ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
             }
 
-            sensor_msgs::PointCloud2 pc12;
+            /*sensor_msgs::PointCloud2 pc12;
       pcl::toROSMsg(*laserCloudCornerPtr, pc12);
       pc12.header.stamp = ros::Time().fromSec(timeLaserCloudExtreCur);
       pc12.header.frame_id = "/camera";
-      pub1->publish(pc12);
-/*
+      pub1.publish(pc12);
+
       sensor_msgs::PointCloud2 pc22;
       pcl::toROSMsg(*laserCloudSurfPtr, pc22);
       pc22.header.stamp = ros::Time().fromSec(timeLaserCloudExtreCur);
@@ -980,7 +977,7 @@ public:
 
         if (newLaserPoints) {
             //std::cout << "newLaserPoints" << std::endl;
-
+            float rx, ry, rz, tx, ty, tz;
             if (sweepEnd) {
                 AccumulateRotation(transformSum[0], transformSum[1], transformSum[2],
                         -transform[0], -transform[1] * 1.05, -transform[2], rx, ry, rz);
