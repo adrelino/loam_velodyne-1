@@ -39,3 +39,14 @@
 *.csv
 *.cbp
 *.asv
+
+# Filepaths
+CMakeFiles/
+bin/
+catkin/
+catkin_generated/
+devel/
+gtest/
+CMakeLists.txt.user
+Makefile
+cmake_install.cmake

@@ -1,28 +1,61 @@
-//namespace scanRegistration {
-//void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2,  sensor_msgs::PointCloud2 &outExtreCur2, sensor_msgs::PointCloud2 &outCloudLast2);
-//}
+#pragma once
+#include "ros/ros.h"
+#include "ros/package.h"
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
+#include "sensor_msgs/PointCloud2.h"
+#include "nav_msgs/Odometry.h"
 
+#include "transformMaintenance.h"
+#include "laserMapping.h"
+#include "scanRegistration.h"
+#include "laserOdometry.h"
 
+class loam_wrapper
+{
+public:
+    loam_wrapper();
 
-namespace laserOdometry {
-void laserCloudExtreCurHandler(const sensor_msgs::PointCloud2& laserCloudExtreCur2);
-void laserCloudLastHandler(const sensor_msgs::PointCloud2& laserCloudLast2);
-void main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::Odometry &pubOdo);
-}
+    ros::NodeHandle nh;
+    ros::Publisher pubLaserOdometry2;
+    ros::Publisher pubOdomBefMapped;
+    ros::Publisher pubOdomAftMapped;
+    ros::Publisher pubLaserCloudSurround;
+    ros::Publisher pubLaserCloudExtreCur;
+    ros::Publisher pubLaserCloudLast;
+    ros::Publisher pubLaserOdometry;
+    ros::Publisher pubLaserCloudLast2;
+    ros::Publisher pubLaserInput;
 
-namespace laserMapping {
-//void laserCloudLastHandler(const sensor_msgs::PointCloud2& laserCloudLast2);
-//void laserOdometryHandler(const nav_msgs::Odometry& laserOdometry);
-//void main(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs::Odometry & odomBefMapped,nav_msgs::Odometry & odomAftMapped);
-}
+    tf::TransformBroadcaster tfBroadcaster;
+    tf::StampedTransform laserOdometryTrans;
 
-namespace transformMaintenance {
-//void laserOdometryHandler(const nav_msgs::Odometry& laserOdometry, nav_msgs::Odometry &outlaserOdometry2);
-//void odomBefMappedHandler(const nav_msgs::Odometry& odomBefMapped);
-//void odomAftMappedHandler(const nav_msgs::Odometry& odomAftMapped);
-//int main();
+    tf::TransformBroadcaster tfBroadcaster2;
 
+    // Transform Maintance
+    transformMaintenance::transformMaintenance * transformMain;
 
+    // Laser Mapping
+    laserMapping::laserMapping * laserMap;
 
+    // Scan Registration
+    scanRegistration::scanRegistration * scanReg;
 
-}
+    // Laser Odometry
+    laserOdometry::laserOdometry * laserOd;
+
+    sensor_msgs::PointCloud2 outExtreCur2;
+    sensor_msgs::PointCloud2 outCloudLast2;
+
+    sensor_msgs::PointCloud2 pub;
+    nav_msgs::Odometry pubOdo;
+
+    sensor_msgs::PointCloud2 laser_cloud_surround;
+    nav_msgs::Odometry odomBefMapped;
+    nav_msgs::Odometry odomAftMapped;
+
+    nav_msgs::Odometry outlaserOdometry2;
+
+    void newInPC(sensor_msgs::PointCloud2Ptr pc);
+
+};
