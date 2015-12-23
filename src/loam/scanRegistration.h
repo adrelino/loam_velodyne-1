@@ -106,6 +106,8 @@ private:
 
     int cloudSortInd[CLOUD];
     int cloudNeighborPicked[CLOUD];
+
+    int createInsidePC(const pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud);
 };
 
 }

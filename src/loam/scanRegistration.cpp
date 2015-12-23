@@ -114,24 +114,10 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
     int cloudInSize = laserCloudIn->points.size();
 
     // Take input cloud at copy it to PCL but only if inside of circle of 0.5m
-    int cloudSize = 0;
-    pcl::PointXYZHSV laserPointIn;
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud(new pcl::PointCloud<pcl::PointXYZHSV>());
-    for (int i = 0; i < cloudInSize; i++) {
-        laserPointIn.x = laserCloudIn->points[i].x;
-        laserPointIn.y = laserCloudIn->points[i].y;
-        laserPointIn.z = laserCloudIn->points[i].z;
-        laserPointIn.h = timeLasted;
-        laserPointIn.v = 0;
+    int cloudSize = createInsidePC(laserCloudIn,laserCloud);
 
-        if (!(fabs(laserPointIn.x) < 0.5 && fabs(laserPointIn.y) < 0.5 && fabs(laserPointIn.z) < 0.5) & cloudSize<CLOUD)
-        {
-            laserCloud->push_back(laserPointIn);
-            cloudSortInd[cloudSize] = cloudSize;
-            cloudNeighborPicked[cloudSize] = 0;
-            cloudSize++;
-        }
-    }
+
 
     pcl::PointXYZ laserPointFirst = laserCloudIn->points[0];
     pcl::PointXYZ laserPointLast = laserCloudIn->points[cloudInSize - 1];
@@ -618,5 +604,28 @@ scanRegistration::scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::
     timeStart = 0;
     timeLasted = 0;
 
+}
+
+// Take input cloud at copy it to PCL but only if inside of circle of 0.5m
+int scanRegistration::createInsidePC(const pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud)
+{
+    int cloudSize = 0;
+    for (int i = 0; i < laserCloudIn->points.size(); i++) {
+        pcl::PointXYZHSV laserPointIn;
+        laserPointIn.x = laserCloudIn->points[i].x;
+        laserPointIn.y = laserCloudIn->points[i].y;
+        laserPointIn.z = laserCloudIn->points[i].z;
+        laserPointIn.h = timeLasted;
+        laserPointIn.v = 0;
+
+        if (!(fabs(laserPointIn.x) < 0.5 && fabs(laserPointIn.y) < 0.5 && fabs(laserPointIn.z) < 0.5) & cloudSize<CLOUD)
+        {
+            laserCloud->push_back(laserPointIn);
+            cloudSortInd[cloudSize] = cloudSize;
+            cloudNeighborPicked[cloudSize] = 0;
+            cloudSize++;
+        }
+    }
+    return cloudSize;
 }
 }
