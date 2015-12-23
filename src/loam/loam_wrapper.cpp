@@ -42,6 +42,7 @@ void loam_wrapper::newInPC(sensor_msgs::PointCloud2Ptr pc)
     if (pub.width>0)
         laserMap->laserCloudLastHandler(pub);
 
+    if (pub.width>0)
     laserMap->loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
 
     // maintanance
