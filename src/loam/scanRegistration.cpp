@@ -294,143 +294,14 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
         }
     }
 
+    // Compute Features
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp(new pcl::PointCloud<pcl::PointXYZHSV>());
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp(new pcl::PointCloud<pcl::PointXYZHSV>());
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat(new pcl::PointCloud<pcl::PointXYZHSV>());
-
-    // compute indecies for each quarter
-    int startPoints[4] = {5, 6 + int((cloudSize - 10) / 4.0),
-                          6 + int((cloudSize - 10) / 2.0), 6 + int(3 * (cloudSize - 10) / 4.0)};
-    int endPoints[4] = {5 + int((cloudSize - 10) / 4.0), 5 + int((cloudSize - 10) / 2.0),
-                        5 + int(3 * (cloudSize - 10) / 4.0), cloudSize - 6};
-
-    for (int i = 0; i < 4; i++)
-    {
-        int sp = startPoints[i];
-        int ep = endPoints[i];
-
-
-        // sorts points based on smoothness
-        for (int j = sp + 1; j <= ep; j++) {
-            for (int k = j; k >= sp + 1; k--) {
-                if (laserCloud->points[cloudSortInd[k]].s < laserCloud->points[cloudSortInd[k - 1]].s) {
-                    int temp = cloudSortInd[k - 1];
-                    cloudSortInd[k - 1] = cloudSortInd[k];
-                    cloudSortInd[k] = temp;
-                }
-            }
-        }
-
-        int largestPickedNum = 0;
-        for (int j = ep; j >= sp; j--) {
-            if (cloudNeighborPicked[cloudSortInd[j]] == 0 &&
-                    laserCloud->points[cloudSortInd[j]].s > 0.1 &&
-                    (fabs(laserCloud->points[cloudSortInd[j]].x) > 0.3 ||
-                     fabs(laserCloud->points[cloudSortInd[j]].y) > 0.3 ||
-                     fabs(laserCloud->points[cloudSortInd[j]].z) > 0.3) &&
-                    fabs(laserCloud->points[cloudSortInd[j]].x) < 30 &&
-                    fabs(laserCloud->points[cloudSortInd[j]].y) < 30 &&
-                    fabs(laserCloud->points[cloudSortInd[j]].z) < 30) {
-
-                largestPickedNum++;
-                if (largestPickedNum <= 2) {
-                    laserCloud->points[cloudSortInd[j]].v = 2;
-                    cornerPointsSharp->push_back(laserCloud->points[cloudSortInd[j]]);
-                } else if (largestPickedNum <= 20) {
-                    laserCloud->points[cloudSortInd[j]].v = 1;
-                    cornerPointsLessSharp->push_back(laserCloud->points[cloudSortInd[j]]);
-                } else {
-                    break;
-                }
-
-                cloudNeighborPicked[cloudSortInd[j]] = 1;
-                for (int k = 1; k <= 5; k++) {
-                    float diffX = laserCloud->points[cloudSortInd[j] + k].x
-                            - laserCloud->points[cloudSortInd[j] + k - 1].x;
-                    float diffY = laserCloud->points[cloudSortInd[j] + k].y
-                            - laserCloud->points[cloudSortInd[j] + k - 1].y;
-                    float diffZ = laserCloud->points[cloudSortInd[j] + k].z
-                            - laserCloud->points[cloudSortInd[j] + k - 1].z;
-                    if (diffX * diffX + diffY * diffY + diffZ * diffZ > 0.05) {
-                        break;
-                    }
-
-                    cloudNeighborPicked[cloudSortInd[j] + k] = 1;
-                }
-                for (int k = -1; k >= -5; k--) {
-                    float diffX = laserCloud->points[cloudSortInd[j] + k].x
-                            - laserCloud->points[cloudSortInd[j] + k + 1].x;
-                    float diffY = laserCloud->points[cloudSortInd[j] + k].y
-                            - laserCloud->points[cloudSortInd[j] + k + 1].y;
-                    float diffZ = laserCloud->points[cloudSortInd[j] + k].z
-                            - laserCloud->points[cloudSortInd[j] + k + 1].z;
-                    if (diffX * diffX + diffY * diffY + diffZ * diffZ > 0.05) {
-                        break;
-                    }
-
-                    cloudNeighborPicked[cloudSortInd[j] + k] = 1;
-                }
-            }
-        }
-
-        int smallestPickedNum = 0;
-        for (int j = sp; j <= ep; j++) {
-            if (cloudNeighborPicked[cloudSortInd[j]] == 0 &&
-                    laserCloud->points[cloudSortInd[j]].s < 0.1 &&
-                    (fabs(laserCloud->points[cloudSortInd[j]].x) > 0.3 ||
-                     fabs(laserCloud->points[cloudSortInd[j]].y) > 0.3 ||
-                     fabs(laserCloud->points[cloudSortInd[j]].z) > 0.3) &&
-                    fabs(laserCloud->points[cloudSortInd[j]].x) < 30 &&
-                    fabs(laserCloud->points[cloudSortInd[j]].y) < 30 &&
-                    fabs(laserCloud->points[cloudSortInd[j]].z) < 30) {
-
-                laserCloud->points[cloudSortInd[j]].v = -1;
-                surfPointsFlat->push_back(laserCloud->points[cloudSortInd[j]]);
-
-                smallestPickedNum++;
-                if (smallestPickedNum >= 4) {
-                    break;
-                }
-
-                cloudNeighborPicked[cloudSortInd[j]] = 1;
-                for (int k = 1; k <= 5; k++) {
-                    float diffX = laserCloud->points[cloudSortInd[j] + k].x
-                            - laserCloud->points[cloudSortInd[j] + k - 1].x;
-                    float diffY = laserCloud->points[cloudSortInd[j] + k].y
-                            - laserCloud->points[cloudSortInd[j] + k - 1].y;
-                    float diffZ = laserCloud->points[cloudSortInd[j] + k].z
-                            - laserCloud->points[cloudSortInd[j] + k - 1].z;
-                    if (diffX * diffX + diffY * diffY + diffZ * diffZ > 0.05) {
-                        break;
-                    }
-
-                    cloudNeighborPicked[cloudSortInd[j] + k] = 1;
-                }
-                for (int k = -1; k >= -5; k--) {
-                    float diffX = laserCloud->points[cloudSortInd[j] + k].x
-                            - laserCloud->points[cloudSortInd[j] + k + 1].x;
-                    float diffY = laserCloud->points[cloudSortInd[j] + k].y
-                            - laserCloud->points[cloudSortInd[j] + k + 1].y;
-                    float diffZ = laserCloud->points[cloudSortInd[j] + k].z
-                            - laserCloud->points[cloudSortInd[j] + k + 1].z;
-                    if (diffX * diffX + diffY * diffY + diffZ * diffZ > 0.05) {
-                        break;
-                    }
-
-                    cloudNeighborPicked[cloudSortInd[j] + k] = 1;
-                }
-            }
-        }
-    }
-
-    // This are the remaing ones because v is initiallized with 0
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlat(new pcl::PointCloud<pcl::PointXYZHSV>());
-    for (int i = 0; i < cloudSize; i++) {
-        if (laserCloud->points[i].v == 0) {
-            surfPointsLessFlat->push_back(laserCloud->points[i]);
-        }
-    }
+    compFeatures(cornerPointsSharp, cornerPointsLessSharp, surfPointsFlat, surfPointsLessFlat, laserCloud, cloudSize);
 
+    // Filter less flat points
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS(new pcl::PointCloud<pcl::PointXYZHSV>());
     pcl::VoxelGrid<pcl::PointXYZHSV> downSizeFilter;
     downSizeFilter.setInputCloud(surfPointsLessFlat);
@@ -637,6 +508,140 @@ bool scanRegistration::isNewSweep(pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloud
         std::cout << "new sweep" << std::endl;
     }
     return newSweep;
+}
+
+void scanRegistration::compFeatures(pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize)
+{
+    int startPoints[4] = {5, 6 + int((cloudSize - 10) / 4.0),
+                          6 + int((cloudSize - 10) / 2.0), 6 + int(3 * (cloudSize - 10) / 4.0)};
+    int endPoints[4] = {5 + int((cloudSize - 10) / 4.0), 5 + int((cloudSize - 10) / 2.0),
+                        5 + int(3 * (cloudSize - 10) / 4.0), cloudSize - 6};
+
+    for (int i = 0; i < 4; i++)
+    {
+        int sp = startPoints[i];
+        int ep = endPoints[i];
+
+
+        // sorts points based on smoothness
+        for (int j = sp + 1; j <= ep; j++) {
+            for (int k = j; k >= sp + 1; k--) {
+                if (laserCloud->points[cloudSortInd[k]].s < laserCloud->points[cloudSortInd[k - 1]].s) {
+                    int temp = cloudSortInd[k - 1];
+                    cloudSortInd[k - 1] = cloudSortInd[k];
+                    cloudSortInd[k] = temp;
+                }
+            }
+        }
+
+        int largestPickedNum = 0;
+        for (int j = ep; j >= sp; j--) {
+            if (cloudNeighborPicked[cloudSortInd[j]] == 0 &&
+                    laserCloud->points[cloudSortInd[j]].s > 0.1 &&
+                    (fabs(laserCloud->points[cloudSortInd[j]].x) > 0.3 ||
+                     fabs(laserCloud->points[cloudSortInd[j]].y) > 0.3 ||
+                     fabs(laserCloud->points[cloudSortInd[j]].z) > 0.3) &&
+                    fabs(laserCloud->points[cloudSortInd[j]].x) < 30 &&
+                    fabs(laserCloud->points[cloudSortInd[j]].y) < 30 &&
+                    fabs(laserCloud->points[cloudSortInd[j]].z) < 30) {
+
+                largestPickedNum++;
+                if (largestPickedNum <= 2) {
+                    laserCloud->points[cloudSortInd[j]].v = 2;
+                    cornerPointsSharp->push_back(laserCloud->points[cloudSortInd[j]]);
+                } else if (largestPickedNum <= 20) {
+                    laserCloud->points[cloudSortInd[j]].v = 1;
+                    cornerPointsLessSharp->push_back(laserCloud->points[cloudSortInd[j]]);
+                } else {
+                    break;
+                }
+
+                cloudNeighborPicked[cloudSortInd[j]] = 1;
+                for (int k = 1; k <= 5; k++) {
+                    float diffX = laserCloud->points[cloudSortInd[j] + k].x
+                            - laserCloud->points[cloudSortInd[j] + k - 1].x;
+                    float diffY = laserCloud->points[cloudSortInd[j] + k].y
+                            - laserCloud->points[cloudSortInd[j] + k - 1].y;
+                    float diffZ = laserCloud->points[cloudSortInd[j] + k].z
+                            - laserCloud->points[cloudSortInd[j] + k - 1].z;
+                    if (diffX * diffX + diffY * diffY + diffZ * diffZ > 0.05) {
+                        break;
+                    }
+
+                    cloudNeighborPicked[cloudSortInd[j] + k] = 1;
+                }
+                for (int k = -1; k >= -5; k--) {
+                    float diffX = laserCloud->points[cloudSortInd[j] + k].x
+                            - laserCloud->points[cloudSortInd[j] + k + 1].x;
+                    float diffY = laserCloud->points[cloudSortInd[j] + k].y
+                            - laserCloud->points[cloudSortInd[j] + k + 1].y;
+                    float diffZ = laserCloud->points[cloudSortInd[j] + k].z
+                            - laserCloud->points[cloudSortInd[j] + k + 1].z;
+                    if (diffX * diffX + diffY * diffY + diffZ * diffZ > 0.05) {
+                        break;
+                    }
+
+                    cloudNeighborPicked[cloudSortInd[j] + k] = 1;
+                }
+            }
+        }
+
+        int smallestPickedNum = 0;
+        for (int j = sp; j <= ep; j++) {
+            if (cloudNeighborPicked[cloudSortInd[j]] == 0 &&
+                    laserCloud->points[cloudSortInd[j]].s < 0.1 &&
+                    (fabs(laserCloud->points[cloudSortInd[j]].x) > 0.3 ||
+                     fabs(laserCloud->points[cloudSortInd[j]].y) > 0.3 ||
+                     fabs(laserCloud->points[cloudSortInd[j]].z) > 0.3) &&
+                    fabs(laserCloud->points[cloudSortInd[j]].x) < 30 &&
+                    fabs(laserCloud->points[cloudSortInd[j]].y) < 30 &&
+                    fabs(laserCloud->points[cloudSortInd[j]].z) < 30) {
+
+                laserCloud->points[cloudSortInd[j]].v = -1;
+                surfPointsFlat->push_back(laserCloud->points[cloudSortInd[j]]);
+
+                smallestPickedNum++;
+                if (smallestPickedNum >= 4) {
+                    break;
+                }
+
+                cloudNeighborPicked[cloudSortInd[j]] = 1;
+                for (int k = 1; k <= 5; k++) {
+                    float diffX = laserCloud->points[cloudSortInd[j] + k].x
+                            - laserCloud->points[cloudSortInd[j] + k - 1].x;
+                    float diffY = laserCloud->points[cloudSortInd[j] + k].y
+                            - laserCloud->points[cloudSortInd[j] + k - 1].y;
+                    float diffZ = laserCloud->points[cloudSortInd[j] + k].z
+                            - laserCloud->points[cloudSortInd[j] + k - 1].z;
+                    if (diffX * diffX + diffY * diffY + diffZ * diffZ > 0.05) {
+                        break;
+                    }
+
+                    cloudNeighborPicked[cloudSortInd[j] + k] = 1;
+                }
+                for (int k = -1; k >= -5; k--) {
+                    float diffX = laserCloud->points[cloudSortInd[j] + k].x
+                            - laserCloud->points[cloudSortInd[j] + k + 1].x;
+                    float diffY = laserCloud->points[cloudSortInd[j] + k].y
+                            - laserCloud->points[cloudSortInd[j] + k + 1].y;
+                    float diffZ = laserCloud->points[cloudSortInd[j] + k].z
+                            - laserCloud->points[cloudSortInd[j] + k + 1].z;
+                    if (diffX * diffX + diffY * diffY + diffZ * diffZ > 0.05) {
+                        break;
+                    }
+
+                    cloudNeighborPicked[cloudSortInd[j] + k] = 1;
+                }
+            }
+        }
+    }
+
+    // This are the remaing ones because v is initiallized with 0
+    for (int i = 0; i < cloudSize; i++) {
+        if (laserCloud->points[i].v == 0) {
+            surfPointsLessFlat->push_back(laserCloud->points[i]);
+        }
+    }
 }
 
 }
