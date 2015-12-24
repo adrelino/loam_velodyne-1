@@ -26,15 +26,15 @@ void loam_wrapper::publishInput(sensor_msgs::PointCloud2 &pc)
 void loam_wrapper::newInPC(sensor_msgs::PointCloud2Ptr pc)
 {
     // Registration
-    scanReg->laserCloudHandler(pc,outExtreCur2,outCloudLast2);
-    if(outCloudLast2.width>0)
+    scanReg->laserCloudHandler(pc);
+    if(scanReg->laserCloudLast2.width>0)
     {
-        laserOd->laserCloudLastHandler(outCloudLast2);
-        outCloudLast2.fields[3].name = "intensity";
+        laserOd->laserCloudLastHandler(scanReg->laserCloudLast2);
+        //outCloudLast2.fields[3].name = "intensity";
     }
-    if(outExtreCur2.width>0)
+    if(scanReg->laserCloudExtreCur2.width>0)
     {
-        laserOd->laserCloudExtreCurHandler(outExtreCur2);
+        laserOd->laserCloudExtreCurHandler(scanReg->laserCloudExtreCur2);
     }
 
 
@@ -60,6 +60,8 @@ void loam_wrapper::newInPC(sensor_msgs::PointCloud2Ptr pc)
 void loam_wrapper::newInPCKITTI(sensor_msgs::PointCloud2 &pc, sensor_msgs::PointCloud2 &nextpc)
 {
 
+
+
     laserOd->laserCloudExtreCurHandler(nextpc);
     laserOd->laserCloudLastHandler(pc);
 
@@ -72,6 +74,7 @@ void loam_wrapper::newInPCKITTI(sensor_msgs::PointCloud2 &pc, sensor_msgs::Point
 //    laserMap->laserOdometryHandler(pubOdo);
 
 //    if (pub.width>0)
+
 //        laserMap->laserCloudLastHandler(pub);
 
 //    if (pub.width>0)

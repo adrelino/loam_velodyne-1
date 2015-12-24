@@ -46,9 +46,6 @@ public:
     // Laser Odometry
     laserOdometry::laserOdometry * laserOd;
 
-    sensor_msgs::PointCloud2 outExtreCur2;
-    sensor_msgs::PointCloud2 outCloudLast2;
-
     sensor_msgs::PointCloud2 pub;
     nav_msgs::Odometry pubOdo;
 

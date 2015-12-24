@@ -98,7 +98,7 @@ void scanRegistration::AccumulateIMUShift()
     }
 }
 
-void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2, sensor_msgs::PointCloud2 &outExtreCur2, sensor_msgs::PointCloud2 &outCloudLast2)
+void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2)
 {
     if (!systemInited) {
         initTime = laserCloudIn2->header.stamp.toSec();
@@ -253,28 +253,7 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
     //    }
 
     /// Computes smoothness for each point
-    for (int i = 5; i < cloudSize - 5; i++) {
-        float diffX = laserCloud->points[i - 5].x + laserCloud->points[i - 4].x
-                + laserCloud->points[i - 3].x + laserCloud->points[i - 2].x
-                + laserCloud->points[i - 1].x - 10 * laserCloud->points[i].x
-                + laserCloud->points[i + 1].x + laserCloud->points[i + 2].x
-                + laserCloud->points[i + 3].x + laserCloud->points[i + 4].x
-                + laserCloud->points[i + 5].x;
-        float diffY = laserCloud->points[i - 5].y + laserCloud->points[i - 4].y
-                + laserCloud->points[i - 3].y + laserCloud->points[i - 2].y
-                + laserCloud->points[i - 1].y - 10 * laserCloud->points[i].y
-                + laserCloud->points[i + 1].y + laserCloud->points[i + 2].y
-                + laserCloud->points[i + 3].y + laserCloud->points[i + 4].y
-                + laserCloud->points[i + 5].y;
-        float diffZ = laserCloud->points[i - 5].z + laserCloud->points[i - 4].z
-                + laserCloud->points[i - 3].z + laserCloud->points[i - 2].z
-                + laserCloud->points[i - 1].z - 10 * laserCloud->points[i].z
-                + laserCloud->points[i + 1].z + laserCloud->points[i + 2].z
-                + laserCloud->points[i + 3].z + laserCloud->points[i + 4].z
-                + laserCloud->points[i + 5].z;
-
-        laserCloud->points[i].s = diffX * diffX + diffY * diffY + diffZ * diffZ;
-    }
+    computeSmoothness(laserCloud,cloudSize);
 
     /// Magic B
     for (int i = 5; i < cloudSize - 6; i++) {
@@ -515,16 +494,16 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
         imuTrans->points[3].z = imuVeloFromStartZCur;
         imuTrans->points[3].v = 13;
 
-        sensor_msgs::PointCloud2 laserCloudExtreCur2;
+
         pcl::toROSMsg(*laserCloudExtreCur + *imuTrans, laserCloudExtreCur2);
         laserCloudExtreCur2.header.stamp = ros::Time().fromSec(timeScanCur);
         laserCloudExtreCur2.header.frame_id = "/camera";
         pubLaserCloudExtreCurPointer->publish(laserCloudExtreCur2);
-        outExtreCur2 = laserCloudExtreCur2;
+
         imuTrans->clear();
 
         pubLaserCloudLastPointer->publish(laserCloudLast2);
-        outCloudLast2 = laserCloudLast2;
+
 
         //ROS_INFO ("%d %d", laserCloudLast2.width, laserCloudExtreCur2.width);
     }
@@ -636,6 +615,32 @@ float scanRegistration::calcLaserAngle(const pcl::PointXYZ inLaserPointFirst, co
 
     float laserAngle = atan2(laserPointLast.x - laserPointFirst.x, laserPointLast.y - laserPointFirst.y);
     return laserAngle;
+}
+
+void scanRegistration::computeSmoothness(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize)
+{
+    for (int i = 5; i < cloudSize - 5; i++) {
+        float diffX = laserCloud->points[i - 5].x + laserCloud->points[i - 4].x
+                + laserCloud->points[i - 3].x + laserCloud->points[i - 2].x
+                + laserCloud->points[i - 1].x - 10 * laserCloud->points[i].x
+                + laserCloud->points[i + 1].x + laserCloud->points[i + 2].x
+                + laserCloud->points[i + 3].x + laserCloud->points[i + 4].x
+                + laserCloud->points[i + 5].x;
+        float diffY = laserCloud->points[i - 5].y + laserCloud->points[i - 4].y
+                + laserCloud->points[i - 3].y + laserCloud->points[i - 2].y
+                + laserCloud->points[i - 1].y - 10 * laserCloud->points[i].y
+                + laserCloud->points[i + 1].y + laserCloud->points[i + 2].y
+                + laserCloud->points[i + 3].y + laserCloud->points[i + 4].y
+                + laserCloud->points[i + 5].y;
+        float diffZ = laserCloud->points[i - 5].z + laserCloud->points[i - 4].z
+                + laserCloud->points[i - 3].z + laserCloud->points[i - 2].z
+                + laserCloud->points[i - 1].z - 10 * laserCloud->points[i].z
+                + laserCloud->points[i + 1].z + laserCloud->points[i + 2].z
+                + laserCloud->points[i + 3].z + laserCloud->points[i + 4].z
+                + laserCloud->points[i + 5].z;
+
+        laserCloud->points[i].s = diffX * diffX + diffY * diffY + diffZ * diffZ;
+    }
 }
 
 

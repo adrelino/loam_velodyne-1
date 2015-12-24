@@ -96,7 +96,7 @@ public:
     void VeloToStartIMU();
     void TransformToStartIMU(pcl::PointXYZHSV *p);
     void AccumulateIMUShift();
-    void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2, sensor_msgs::PointCloud2 &outExtreCur2, sensor_msgs::PointCloud2 &outCloudLast2);
+    void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2);
     void imuHandler(const sensor_msgs::Imu::ConstPtr& imuIn);
     scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::Publisher * pubLaserCloudLast);
 
@@ -109,6 +109,7 @@ private:
 
     int createInsidePC(const pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud);
     float calcLaserAngle(const pcl::PointXYZ laserPointFirst, const pcl::PointXYZ inLaserPointLast);
+    void computeSmoothness(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize);
 };
 
 }
