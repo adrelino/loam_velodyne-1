@@ -22,6 +22,7 @@ laserOdometry::laserOdometry(tf::TransformBroadcaster * tfBroadcaster,tf::Stampe
     kdtreeSurfLast.reset(new pcl::KdTreeFLANN<pcl::PointXYZHSV>());
     kdtreeCornerLLast.reset(new pcl::KdTreeFLANN<pcl::PointXYZHSV>());
     kdtreeSurfLLast.reset(new pcl::KdTreeFLANN<pcl::PointXYZHSV>());
+    systemInited = false;
 }
 
 void laserOdometry::TransformReset()
@@ -267,9 +268,6 @@ void laserOdometry::laserCloudExtreCurHandler(const sensor_msgs::PointCloud2& la
 
 void laserOdometry::laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserCloudLast2)
 {
-    //std::cout << "laserCloudLastHandler():" <<  "laserCloudLast2.header.stamp.toSec() > timeLaserCloudLast + 0.005 =" << (laserCloudLast2.header.stamp.toSec() > timeLaserCloudLast + 0.005) << std::endl;
-    //std::cout << "laserCloudLast2.header.stamp.toSec() = " << laserCloudLast2.header.stamp.toSec()  << std::endl;
-    //std::cout << "timeLaserCloudLast=" << timeLaserCloudLast << std::endl;
     if (laserCloudLast2.header.stamp.toSec() > timeLaserCloudLast + 0.005) {
         timeLaserCloudLast = laserCloudLast2.header.stamp.toSec();
         startTimeLast = startTimeCur;
