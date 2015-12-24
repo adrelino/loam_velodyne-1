@@ -129,25 +129,7 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
         // timeStart = timeScanLast - initTime;
 
         pcl::PointCloud<pcl::PointXYZHSV>::Ptr imuTrans(new pcl::PointCloud<pcl::PointXYZHSV>(4, 1));
-        imuTrans->points[0].x = imuPitchStart;
-        imuTrans->points[0].y = imuYawStart;
-        imuTrans->points[0].z = imuRollStart;
-        imuTrans->points[0].v = 10;
-
-        imuTrans->points[1].x = imuPitchCur;
-        imuTrans->points[1].y = imuYawCur;
-        imuTrans->points[1].z = imuRollCur;
-        imuTrans->points[1].v = 11;
-
-        imuTrans->points[2].x = imuShiftFromStartXCur;
-        imuTrans->points[2].y = imuShiftFromStartYCur;
-        imuTrans->points[2].z = imuShiftFromStartZCur;
-        imuTrans->points[2].v = 12;
-
-        imuTrans->points[3].x = imuVeloFromStartXCur;
-        imuTrans->points[3].y = imuVeloFromStartYCur;
-        imuTrans->points[3].z = imuVeloFromStartZCur;
-        imuTrans->points[3].v = 13;
+        setImuTrans(imuTrans);
 
         *laserCloudExtreCur += *laserCloudLessExtreCur;
         pcl::toROSMsg(*laserCloudExtreCur + *imuTrans, laserCloudLast2);
@@ -319,13 +301,14 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp(new pcl::PointCloud<pcl::PointXYZHSV>());
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat(new pcl::PointCloud<pcl::PointXYZHSV>());
 
-
+    // compute indecies for each quarter
     int startPoints[4] = {5, 6 + int((cloudSize - 10) / 4.0),
                           6 + int((cloudSize - 10) / 2.0), 6 + int(3 * (cloudSize - 10) / 4.0)};
     int endPoints[4] = {5 + int((cloudSize - 10) / 4.0), 5 + int((cloudSize - 10) / 2.0),
                         5 + int(3 * (cloudSize - 10) / 4.0), cloudSize - 6};
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++)
+    {
         int sp = startPoints[i];
         int ep = endPoints[i];
 
@@ -474,25 +457,7 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
         skipFrameCount = 0;
 
         pcl::PointCloud<pcl::PointXYZHSV>::Ptr imuTrans(new pcl::PointCloud<pcl::PointXYZHSV>(4, 1));
-        imuTrans->points[0].x = imuPitchStart;
-        imuTrans->points[0].y = imuYawStart;
-        imuTrans->points[0].z = imuRollStart;
-        imuTrans->points[0].v = 10;
-
-        imuTrans->points[1].x = imuPitchCur;
-        imuTrans->points[1].y = imuYawCur;
-        imuTrans->points[1].z = imuRollCur;
-        imuTrans->points[1].v = 11;
-
-        imuTrans->points[2].x = imuShiftFromStartXCur;
-        imuTrans->points[2].y = imuShiftFromStartYCur;
-        imuTrans->points[2].z = imuShiftFromStartZCur;
-        imuTrans->points[2].v = 12;
-
-        imuTrans->points[3].x = imuVeloFromStartXCur;
-        imuTrans->points[3].y = imuVeloFromStartYCur;
-        imuTrans->points[3].z = imuVeloFromStartZCur;
-        imuTrans->points[3].v = 13;
+        setImuTrans(imuTrans);
 
 
         pcl::toROSMsg(*laserCloudExtreCur + *imuTrans, laserCloudExtreCur2);
@@ -643,6 +608,28 @@ void scanRegistration::computeSmoothness(pcl::PointCloud<pcl::PointXYZHSV>::Ptr 
     }
 }
 
+void scanRegistration::setImuTrans(pcl::PointCloud<pcl::PointXYZHSV>::Ptr imuTrans)
+{
+    imuTrans->points[0].x = imuPitchStart;
+    imuTrans->points[0].y = imuYawStart;
+    imuTrans->points[0].z = imuRollStart;
+    imuTrans->points[0].v = 10;
+
+    imuTrans->points[1].x = imuPitchCur;
+    imuTrans->points[1].y = imuYawCur;
+    imuTrans->points[1].z = imuRollCur;
+    imuTrans->points[1].v = 11;
+
+    imuTrans->points[2].x = imuShiftFromStartXCur;
+    imuTrans->points[2].y = imuShiftFromStartYCur;
+    imuTrans->points[2].z = imuShiftFromStartZCur;
+    imuTrans->points[2].v = 12;
+
+    imuTrans->points[3].x = imuVeloFromStartXCur;
+    imuTrans->points[3].y = imuVeloFromStartYCur;
+    imuTrans->points[3].z = imuVeloFromStartZCur;
+    imuTrans->points[3].v = 13;
+}
 
 }
 
