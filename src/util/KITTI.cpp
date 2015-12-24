@@ -72,6 +72,7 @@ int KITTI::getVel(std::vector<std::string> &files, std::vector<std::vector<veloP
             temp.push_back(point);
             px+=4; py+=4; pz+=4; pr+=4;
         }
+        std::cout << "velopoints size" << temp.size() << std::endl;
         points.push_back(temp);
         fclose(stream);
     }
@@ -150,4 +151,36 @@ int KITTI::getFile(std::string source, std::vector<std::string> &files)
         return -1;
     }
 
+}
+
+void KITTI::getPointCloud2(sensor_msgs::PointCloud2 & outPC, int i)
+{
+    createPointCloud2(outPC,velpoints[i]);
+}
+
+void KITTI::createPointCloud2(sensor_msgs::PointCloud2 & outPC, std::vector<veloPoint> & veloPoints)
+{
+    //pcl::PointCloud<pcl::PointXYZI>::Ptr msg (new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::PointCloud<pcl::PointXYZ> msg;
+    msg.is_dense = true;
+    msg.header.seq = 1;
+    msg.header.stamp = 1;
+    msg.header.frame_id = "some_tf_frame";
+    msg.height = 1;
+    msg.resize(sizeof(pcl::PointXYZ)*veloPoints.size());
+    for (int i=0; i<veloPoints.size(); i++)
+    {
+        //pcl::PointXYZI temp(10.0);
+        pcl::PointXYZ temp;
+        temp.x = veloPoints[i].x;
+        temp.y = veloPoints[i].y;
+        temp.z = veloPoints[i].z;
+        //temp.intensity = veloPoints[i].i;
+
+        msg.points.push_back (temp);
+    }
+
+    msg.width = msg.points.size();
+    pcl::toROSMsg(msg,outPC);
+    msg.clear();
 }
