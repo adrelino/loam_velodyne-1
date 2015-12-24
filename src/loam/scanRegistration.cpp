@@ -252,6 +252,7 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
     //        TransformToStartIMU(&laserCloud->points[i]);
     //    }
 
+    /// Computes smoothness for each point
     for (int i = 5; i < cloudSize - 5; i++) {
         float diffX = laserCloud->points[i - 5].x + laserCloud->points[i - 4].x
                 + laserCloud->points[i - 3].x + laserCloud->points[i - 2].x
@@ -275,6 +276,7 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
         laserCloud->points[i].s = diffX * diffX + diffY * diffY + diffZ * diffZ;
     }
 
+    /// Magic B
     for (int i = 5; i < cloudSize - 6; i++) {
         float diffX = laserCloud->points[i + 1].x - laserCloud->points[i].x;
         float diffY = laserCloud->points[i + 1].y - laserCloud->points[i].y;
@@ -337,7 +339,7 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp(new pcl::PointCloud<pcl::PointXYZHSV>());
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp(new pcl::PointCloud<pcl::PointXYZHSV>());
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat(new pcl::PointCloud<pcl::PointXYZHSV>());
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlat(new pcl::PointCloud<pcl::PointXYZHSV>());
+
 
     int startPoints[4] = {5, 6 + int((cloudSize - 10) / 4.0),
                           6 + int((cloudSize - 10) / 2.0), 6 + int(3 * (cloudSize - 10) / 4.0)};
@@ -348,6 +350,8 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
         int sp = startPoints[i];
         int ep = endPoints[i];
 
+
+        // sorts points based on smoothness
         for (int j = sp + 1; j <= ep; j++) {
             for (int k = j; k >= sp + 1; k--) {
                 if (laserCloud->points[cloudSortInd[k]].s < laserCloud->points[cloudSortInd[k - 1]].s) {
@@ -460,6 +464,8 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
         }
     }
 
+    // This are the remaing ones because v is initiallized with 0
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlat(new pcl::PointCloud<pcl::PointXYZHSV>());
     for (int i = 0; i < cloudSize; i++) {
         if (laserCloud->points[i].v == 0) {
             surfPointsLessFlat->push_back(laserCloud->points[i]);
