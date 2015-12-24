@@ -137,7 +137,7 @@ void laserOdometry::TransformToEnd(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po, d
 }
 
 void laserOdometry::AccumulateRotation(float cx, float cy, float cz, float lx, float ly, float lz,
-                        float &ox, float &oy, float &oz)
+                                       float &ox, float &oy, float &oz)
 {
     float srx = cos(lx)*cos(cx)*sin(ly)*sin(cz) - cos(cx)*cos(cz)*sin(lx) - cos(lx)*cos(ly)*sin(cx);
     ox = -asin(srx);
@@ -156,7 +156,7 @@ void laserOdometry::AccumulateRotation(float cx, float cy, float cz, float lx, f
 }
 
 void laserOdometry::PluginIMURotation(float bcx, float bcy, float bcz, float blx, float bly, float blz,
-                       float alx, float aly, float alz, float &acx, float &acy, float &acz)
+                                      float alx, float aly, float alz, float &acx, float &acy, float &acz)
 {
     float sbcx = sin(bcx);
     float cbcx = cos(bcx);
@@ -261,14 +261,16 @@ void laserOdometry::laserCloudExtreCurHandler(const sensor_msgs::PointCloud2& la
         imuInited = true;
     }
 
-    if (timeLasted > 4.0) {
+    if (timeLasted > 4.0)
         newLaserCloudExtreCur = true;
-    }
+    else
+        std::cout << "Extre timeLasted > 4.0" << std::endl;
 }
 
 void laserOdometry::laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserCloudLast2)
 {
-    if (laserCloudLast2.header.stamp.toSec() > timeLaserCloudLast + 0.005) {
+    if (laserCloudLast2.header.stamp.toSec() > timeLaserCloudLast + 0.005)
+    {
         timeLaserCloudLast = laserCloudLast2.header.stamp.toSec();
         startTimeLast = startTimeCur;
         startTimeCur = timeLaserCloudLast - initTime;
@@ -330,9 +332,14 @@ void laserOdometry::laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserC
         kdtreeSurfLast = kdtreePointer;
         kdtreeSurfLast->setInputCloud(laserCloudSurfLast);
 
-        if (timeLasted > 4.0) {
+        if (timeLasted > 4.0)
             newLaserCloudLast = true;
-        }
+        else
+            std::cout << "timeLasted < 4.0" << std::endl;
+    }
+    else
+    {
+        std::cout << "New Point cloud arived to early" << std::endl;
     }
 }
 
@@ -387,7 +394,8 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
     double startTime, endTime;
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr extrePointsPtr, laserCloudCornerPtr, laserCloudSurfPtr;
     pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeCornerPtr, kdtreeSurfPtr;
-    if (newLaserCloudExtreCur && newLaserCloudLast) {
+    if (newLaserCloudExtreCur && newLaserCloudLast)
+    {
 
         startTime = startTimeLast;
         endTime = startTimeCur;
@@ -408,7 +416,8 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
             sufficientPoints = true;
         }
 
-    } else if (newLaserCloudExtreCur) {
+    } else if (newLaserCloudExtreCur)
+    {
 
         startTime = startTimeCur;
         endTime = timeLasted;
@@ -435,7 +444,8 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
         }
     }
 
-    if (newLaserPoints && sufficientPoints) {
+    if (newLaserPoints && sufficientPoints)
+    {
         newLaserCloudExtreCur = false;
         newLaserCloudLast = false;
 
@@ -885,27 +895,38 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
   pub6.publish(pc62);*/
     }
 
-    if (newLaserPoints) {
+    if (newLaserPoints)
+    {
         //std::cout << "newLaserPoints" << std::endl;
         float rx, ry, rz, tx, ty, tz;
-        if (sweepEnd) {
-            AccumulateRotation(transformSum[0], transformSum[1], transformSum[2],
-                    -transform[0], -transform[1] * 1.05, -transform[2], rx, ry, rz);
 
-            float x1 = cos(rz) * (transform[3] - imuShiftFromStartXLast)
-                    - sin(rz) * (transform[4] - imuShiftFromStartYLast);
-            float y1 = sin(rz) * (transform[3] - imuShiftFromStartXLast)
-                    + cos(rz) * (transform[4] - imuShiftFromStartYLast);
-            float z1 = transform[5] * 1.05 - imuShiftFromStartZLast;
+        AccumulateRotation(transformSum[0], transformSum[1], transformSum[2], -transform[0], -transform[1] * 1.05, -transform[2], rx, ry, rz);
 
-            float x2 = x1;
-            float y2 = cos(rx) * y1 - sin(rx) * z1;
-            float z2 = sin(rx) * y1 + cos(rx) * z1;
+        float x1, y1, z1;
+        if (sweepEnd)
+        {
+            x1 = cos(rz) * (transform[3] - imuShiftFromStartXLast) - sin(rz) * (transform[4] - imuShiftFromStartYLast);
+            y1 = sin(rz) * (transform[3] - imuShiftFromStartXLast) + cos(rz) * (transform[4] - imuShiftFromStartYLast);
+            z1 = transform[5] * 1.05 - imuShiftFromStartZLast;
+        }
+        else
+        {
+            x1 = cos(rz) * (transform[3] - imuShiftFromStartXCur) - sin(rz) * (transform[4] - imuShiftFromStartYCur);
+            y1 = sin(rz) * (transform[3] - imuShiftFromStartXCur) + cos(rz) * (transform[4] - imuShiftFromStartYCur);
+            z1 = transform[5] * 1.05 - imuShiftFromStartZCur;
+        }
 
-            tx = transformSum[3] - (cos(ry) * x2 + sin(ry) * z2);
-            ty = transformSum[4] - y2;
-            tz = transformSum[5] - (-sin(ry) * x2 + cos(ry) * z2);
+        float x2 = x1;
+        float y2 = cos(rx) * y1 - sin(rx) * z1;
+        float z2 = sin(rx) * y1 + cos(rx) * z1;
 
+        tx = transformSum[3] - (cos(ry) * x2 + sin(ry) * z2);
+        ty = transformSum[4] - y2;
+        tz = transformSum[5] - (-sin(ry) * x2 + cos(ry) * z2);
+
+
+        if (sweepEnd)
+        {
             PluginIMURotation(rx, ry, rz, imuPitchStartLast, imuYawStartLast, imuRollStartLast,
                               imuPitchLast, imuYawLast, imuRollLast, rx, ry, rz);
 
@@ -938,22 +959,6 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
             pubLaserCloudLast2->publish(laserCloudLast2);
 
         } else {
-            AccumulateRotation(transformSum[0], transformSum[1], transformSum[2],
-                    -transform[0], -transform[1] * 1.05, -transform[2], rx, ry, rz);
-
-            float x1 = cos(rz) * (transform[3] - imuShiftFromStartXCur)
-                    - sin(rz) * (transform[4] - imuShiftFromStartYCur);
-            float y1 = sin(rz) * (transform[3] - imuShiftFromStartXCur)
-                    + cos(rz) * (transform[4] - imuShiftFromStartYCur);
-            float z1 = transform[5] * 1.05 - imuShiftFromStartZCur;
-
-            float x2 = x1;
-            float y2 = cos(rx) * y1 - sin(rx) * z1;
-            float z2 = sin(rx) * y1 + cos(rx) * z1;
-
-            tx = transformSum[3] - (cos(ry) * x2 + sin(ry) * z2);
-            ty = transformSum[4] - y2;
-            tz = transformSum[5] - (-sin(ry) * x2 + cos(ry) * z2);
 
             PluginIMURotation(rx, ry, rz, imuPitchStartCur, imuYawStartCur, imuRollStartCur,
                               imuPitchCur, imuYawCur, imuRollCur, rx, ry, rz);
