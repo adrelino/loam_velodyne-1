@@ -59,5 +59,6 @@ public:
     nav_msgs::Odometry outlaserOdometry2;
 
     void newInPC(sensor_msgs::PointCloud2Ptr pc);
+    void newInPCKITTI(sensor_msgs::PointCloud2Ptr pc, sensor_msgs::PointCloud2Ptr nextpc);
 
 };

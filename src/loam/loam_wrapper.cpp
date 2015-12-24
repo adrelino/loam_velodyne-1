@@ -20,8 +20,6 @@ loam_wrapper::loam_wrapper()
 
 void loam_wrapper::publishInput(sensor_msgs::PointCloud2 &pc)
 {
-    pc.header.stamp = ros::Time();
-    pc.header.frame_id = "/camera_init_2";
     pubLaserInput.publish(pc);
 }
 
@@ -58,3 +56,31 @@ void loam_wrapper::newInPC(sensor_msgs::PointCloud2Ptr pc)
     transformMain->laserOdometryHandler(pubOdo,outlaserOdometry2);
 
 }
+
+void loam_wrapper::newInPCKITTI(sensor_msgs::PointCloud2Ptr pc, sensor_msgs::PointCloud2Ptr nextpc)
+{
+
+    laserOd->laserCloudExtreCurHandler(*nextpc);
+    laserOd->laserCloudLastHandler(*pc);
+
+
+
+    // Laser Odometry
+    laserOd->main_laserOdometry(pub, pubOdo);
+
+    // Lasser Mapping
+    laserMap->laserOdometryHandler(pubOdo);
+
+    if (pub.width>0)
+        laserMap->laserCloudLastHandler(pub);
+
+    if (pub.width>0)
+    laserMap->loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
+
+    // maintanance
+    transformMain->odomAftMappedHandler(odomAftMapped);
+    transformMain->odomBefMappedHandler(odomBefMapped);
+    transformMain->laserOdometryHandler(pubOdo,outlaserOdometry2);
+
+}
+

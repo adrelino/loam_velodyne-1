@@ -35,17 +35,28 @@ int main( int argc, char** argv )
 
     loam_wrapper loam;
 
-    sensor_msgs::PointCloud2 pc;
-    for (int i=0; i<kitti.velpoints.size();i++)
+
+    for (int i=0; i<kitti.velpoints.size()-1;i++)
     {
-        kitti.getPointCloud2(pc);
+        sensor_msgs::PointCloud2 pc;
+        kitti.getPointCloud2(pc,i);
+        pc.header.stamp = ros::Time().now();
+        pc.header.frame_id = "/camera_init_2";
         sleep(4);
 
         loam.publishInput(pc);
 
-       // sensor_msgs::PointCloud2Ptr pc_ptr(&pc);
 
-       // loam.newInPC(pc_ptr);
+        sensor_msgs::PointCloud2 pc_next;
+        kitti.getPointCloud2(pc_next,i+1);
+        pc_next.header.stamp = ros::Time().now();
+        pc_next.header.frame_id = "/camera_init_2";
+
+
+//        sensor_msgs::PointCloud2Ptr pc_ptr(&pc);
+//        sensor_msgs::PointCloud2Ptr pc_ptr_next(&pc_next);
+
+        //loam.newInPCKITTI(pc_ptr,pc_ptr_next);
 
     }
 
