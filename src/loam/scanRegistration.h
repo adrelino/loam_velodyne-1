@@ -112,6 +112,7 @@ private:
     void computeSmoothness(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize);
     void setImuTrans(pcl::PointCloud<pcl::PointXYZHSV>::Ptr imuTrans);
     bool isNewSweep(pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn);
+    void unknownFunction(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize);
     void compFeatures(pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize);
 };
 
