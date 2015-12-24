@@ -251,6 +251,7 @@ void laserOdometry::laserCloudExtreCurHandler(const sensor_msgs::PointCloud2& la
             laserCloudExtreCur->push_back(laserCloudExtreCur3->points[i]);
         }
     }
+    std::cout << "copied laserCloudExtreCur there are now " << laserCloudExtreCur->size() << std::endl;
     laserCloudExtreCur3->clear();
 
     if (!imuInited) {
@@ -291,12 +292,15 @@ void laserOdometry::laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserC
         laserCloudCornerLast->clear();
         laserCloudSurfLast->clear();
         for (int i = 0; i < laserCloudLastSize; i++) {
+            // is v=-2 or v=1
             if (fabs(laserCloudLast->points[i].v - 2) < 0.005 || fabs(laserCloudLast->points[i].v + 1) < 0.005) {
                 laserCloudExtreLast->push_back(laserCloudLast->points[i]);
             }
+            // is v=-2 or v=-1
             if (fabs(laserCloudLast->points[i].v - 2) < 0.005 || fabs(laserCloudLast->points[i].v - 1) < 0.005) {
                 laserCloudCornerLast->push_back(laserCloudLast->points[i]);
             }
+            // is v=0 or v=1
             if (fabs(laserCloudLast->points[i].v) < 0.005 || fabs(laserCloudLast->points[i].v + 1) < 0.005) {
                 laserCloudSurfLast->push_back(laserCloudLast->points[i]);
             }
@@ -321,6 +325,7 @@ void laserOdometry::laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserC
                 imuVeloFromStartZLast = laserCloudLast->points[i].z;
             }
         }
+        std::cout << "copied laserCloudExtreLast " << laserCloudExtreLast->size() << std::endl;
 
         pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreePointer = kdtreeCornerLLast;
         kdtreeCornerLLast = kdtreeCornerLast;
@@ -381,12 +386,8 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
 
 
 
-    //ros::Rate rate(100);
-    //bool status = ros::ok();
-    //while (status) {
-    //ros::spinOnce();
 
-    //std::cout << "newLaserCloudExtreCur=" << newLaserCloudExtreCur << ", newLaserCloudLast=" << newLaserCloudLast << std::endl;
+    std::cout << "newLaserCloudExtreCur=" << newLaserCloudExtreCur << ", newLaserCloudLast=" << newLaserCloudLast << std::endl;
 
     bool sweepEnd = false;
     bool newLaserPoints = false;
@@ -444,14 +445,19 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
         }
     }
 
+
+
     if (newLaserPoints && sufficientPoints)
     {
+        std::cout << "newPoints and enough Points" << std::endl;
         newLaserCloudExtreCur = false;
         newLaserCloudLast = false;
 
-        int extrePointNum = extrePointsPtr->points.size();
+
         int laserCloudCornerNum = laserCloudCornerPtr->points.size();
         int laserCloudSurfNum = laserCloudSurfPtr->points.size();
+        int extrePointNum = extrePointsPtr->points.size();
+        std::cout << "extrePointNum=" << extrePointNum << std::endl;
 
         float st = 1;
         if (!sweepEnd) {
@@ -460,8 +466,12 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
         int iterNum = st * 50;
 
         int pointSelSkipNum = 2;
-        for (int iterCount = 0; iterCount < iterNum; iterCount++) {
 
+        /// a number of iterations
+        std::cout << "Will process " << iterNum << " iterations" << std::endl;
+        for (int iterCount = 0; iterCount < iterNum; iterCount++)
+        {
+            std::cout << "iterCount=" << iterCount << std::endl;
             laserCloudExtreOri->clear();
             //laserCloudExtreSel->clear();
             //laserCloudExtreUnsel->clear();
@@ -475,7 +485,9 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                 pointSelInd.clear();
             }
 
-            for (int i = 0; i < extrePointNum; i++) {
+
+            for (int i = 0; i < extrePointNum; i++)
+            {
                 extreOri = extrePointsPtr->points[i];
                 TransformToStart(&extreOri, &extreSel, startTime, endTime);
 
@@ -485,8 +497,10 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                     pointSelInd.push_back(-1);
                 }
 
-                if (fabs(extreOri.v + 1) < 0.05) {
-
+                /// edge point
+                if (fabs(extreOri.v + 1) < 0.05)
+                {
+                    //std::cout << "edge point" << std::endl;
                     int closestPointInd = -1, minPointInd2 = -1, minPointInd3 = -1;
                     if (isPointSel) {
                         kdtreeSurfPtr->nearestKSearch(extreSel, 1, pointSearchInd, pointSearchSqDis);
@@ -618,7 +632,10 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                             //laserCloudExtreUnsel->push_back(extreSel);
                         }
                     }
-                } else if (fabs(extreOri.v - 2) < 0.05) {
+                }
+                /// planar point
+                else if (fabs(extreOri.v - 2) < 0.05)
+                {
 
                     int closestPointInd = -1, minPointInd2 = -1;
                     if (isPointSel) {
@@ -895,6 +912,7 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
   pub6.publish(pc62);*/
     }
 
+    /// Last step
     if (newLaserPoints)
     {
         //std::cout << "newLaserPoints" << std::endl;
@@ -924,7 +942,7 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
         ty = transformSum[4] - y2;
         tz = transformSum[5] - (-sin(ry) * x2 + cos(ry) * z2);
 
-
+        // at the end of a sweep
         if (sweepEnd)
         {
             PluginIMURotation(rx, ry, rz, imuPitchStartLast, imuYawStartLast, imuRollStartLast,
@@ -981,15 +999,7 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
         laserOdometryTrans->setOrigin(tf::Vector3(tx, ty, tz));
         tfBroadcaster->sendTransform(*laserOdometryTrans);
 
-        //ROS_INFO ("%f %f %f %f %f %f", transformSum[0], transformSum[1], transformSum[2],
-        //                               transformSum[3], transformSum[4], transformSum[5]);
     }
-
-    //status = ros::ok();
-    //rate.sleep();
-    //}
-
-    //return 0;
 }
 
 }

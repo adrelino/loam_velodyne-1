@@ -42,6 +42,7 @@ public:
 
     // Scan Registration
     scanRegistration::scanRegistration * scanReg;
+    scanRegistration::scanRegistration * scanReg2;
 
     // Laser Odometry
     laserOdometry::laserOdometry * laserOd;

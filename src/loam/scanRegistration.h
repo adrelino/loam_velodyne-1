@@ -25,11 +25,12 @@
 namespace scanRegistration
 {
 
-#define CLOUD 1200 // cloudSortInd and cloudSortInd
+#define CLOUD 2000000 // cloudSortInd and cloudSortInd
 
 class scanRegistration
 {
 public:
+    scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::Publisher * pubLaserCloudLast);
     const double PI = 3.1415926;
     const double rad2deg = 180 / PI;
     const double deg2rad = PI / 180;
@@ -97,8 +98,8 @@ public:
     void TransformToStartIMU(pcl::PointXYZHSV *p);
     void AccumulateIMUShift();
     void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2);
+    void laserCloudHandlerVelo(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2);
     void imuHandler(const sensor_msgs::Imu::ConstPtr& imuIn);
-    scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::Publisher * pubLaserCloudLast);
 
 private:
     double timeStart;
