@@ -109,6 +109,7 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
     timeScanLast = timeScanCur;
     timeScanCur = laserCloudIn2->header.stamp.toSec();
     timeLasted = timeScanCur - initTime;
+
     pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn(new pcl::PointCloud<pcl::PointXYZ>());
     pcl::fromROSMsg(*laserCloudIn2, *laserCloudIn);
     int cloudInSize = laserCloudIn->points.size();
@@ -118,11 +119,14 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
     int cloudSize = createInsidePC(laserCloudIn,laserCloud);
 
     float laserAngle = calcLaserAngle(laserCloudIn->points[0],laserCloudIn->points[cloudInSize - 1]);
+    laserCloudIn->clear();
 
+    std::cout << "laserAngle=" << laserAngle << std::endl;
     bool newSweep = false;
     if (laserAngle * laserRotDir < 0 && timeLasted - timeStart > 0.7) {
         laserRotDir *= -1;
         newSweep = true;
+        std::cout << "new sweep" << std::endl;
     }
 
     if (newSweep) {
@@ -445,7 +449,6 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
     *laserCloudLessExtreCur += *cornerPointsLessSharp;
     *laserCloudLessExtreCur += *surfPointsLessFlatDS;
 
-    laserCloudIn->clear();
     laserCloud->clear();
     cornerPointsSharp->clear();
     cornerPointsLessSharp->clear();
@@ -453,7 +456,8 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
     surfPointsLessFlat->clear();
     surfPointsLessFlatDS->clear();
 
-    if (skipFrameCount >= skipFrameNum) {
+    if (skipFrameCount >= skipFrameNum)
+    {
         skipFrameCount = 0;
 
         pcl::PointCloud<pcl::PointXYZHSV>::Ptr imuTrans(new pcl::PointCloud<pcl::PointXYZHSV>(4, 1));
@@ -468,9 +472,6 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
         imuTrans->clear();
 
         pubLaserCloudLastPointer->publish(laserCloudLast2);
-
-
-        //ROS_INFO ("%d %d", laserCloudLast2.width, laserCloudExtreCur2.width);
     }
     skipFrameCount++;
 }
