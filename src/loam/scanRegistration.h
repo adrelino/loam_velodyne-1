@@ -111,6 +111,7 @@ private:
     float calcLaserAngle(const pcl::PointXYZ laserPointFirst, const pcl::PointXYZ inLaserPointLast);
     void computeSmoothness(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize);
     void setImuTrans(pcl::PointCloud<pcl::PointXYZHSV>::Ptr imuTrans);
+    bool isNewSweep(pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn);
 };
 
 }

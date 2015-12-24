@@ -112,23 +112,15 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn(new pcl::PointCloud<pcl::PointXYZ>());
     pcl::fromROSMsg(*laserCloudIn2, *laserCloudIn);
-    int cloudInSize = laserCloudIn->points.size();
+
+    bool newSweep = isNewSweep(laserCloudIn);
 
     // Take input cloud at copy it to PCL but only if inside of circle of 0.5m
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud(new pcl::PointCloud<pcl::PointXYZHSV>());
     int cloudSize = createInsidePC(laserCloudIn,laserCloud);
-
-    float laserAngle = calcLaserAngle(laserCloudIn->points[0],laserCloudIn->points[cloudInSize - 1]);
     laserCloudIn->clear();
 
-    std::cout << "laserAngle=" << laserAngle << std::endl;
-    bool newSweep = false;
-    if (laserAngle * laserRotDir < 0 && timeLasted - timeStart > 0.7) {
-        laserRotDir *= -1;
-        newSweep = true;
-        std::cout << "new sweep" << std::endl;
-    }
-
+    // is published if lidar spinned once
     if (newSweep) {
         // timeStart = timeScanLast - initTime;
 
@@ -137,11 +129,12 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
 
         *laserCloudExtreCur += *laserCloudLessExtreCur;
         pcl::toROSMsg(*laserCloudExtreCur + *imuTrans, laserCloudLast2);
+        imuTrans->clear();
         laserCloudLast2.header.stamp = ros::Time().fromSec(timeScanLast);
         laserCloudLast2.header.frame_id = "/camera";
         laserCloudExtreCur->clear();
         laserCloudLessExtreCur->clear();
-        imuTrans->clear();
+
 
         //        imuRollStart = imuRollCur;
         //        imuPitchStart = imuPitchCur;
@@ -630,6 +623,20 @@ void scanRegistration::setImuTrans(pcl::PointCloud<pcl::PointXYZHSV>::Ptr imuTra
     imuTrans->points[3].y = imuVeloFromStartYCur;
     imuTrans->points[3].z = imuVeloFromStartZCur;
     imuTrans->points[3].v = 13;
+}
+
+bool scanRegistration::isNewSweep(pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn)
+{
+    int cloudInSize = laserCloudIn->points.size();
+    float laserAngle = calcLaserAngle(laserCloudIn->points[0],laserCloudIn->points[cloudInSize - 1]);
+    std::cout << "laserAngle=" << laserAngle << std::endl;
+    bool newSweep = false;
+    if (laserAngle * laserRotDir < 0 && timeLasted - timeStart > 0.7) {
+        laserRotDir *= -1;
+        newSweep = true;
+        std::cout << "new sweep" << std::endl;
+    }
+    return newSweep;
 }
 
 }
