@@ -106,5 +106,10 @@ public:
     void laserCloudExtreCurHandler(const sensor_msgs::PointCloud2& laserCloudExtreCur2);
     void laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserCloudLast2);
     void main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::Odometry &pubOdo);
+private:
+    void processEdgePoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeSurfPtr, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudSurfPtr, bool isPointSel, int laserCloudSurfNum, int i, int iterCount, int iterNum);
+    int number_edge;
+    int number_planar;
+    void processPlanarPoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeCornerPtr, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCornerPtr, bool isPointSel, int laserCloudCornerNum, int i);
 };
 }
