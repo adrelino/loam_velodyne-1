@@ -218,6 +218,10 @@ void scanRegistration::laserCloudHandlerVelo(const sensor_msgs::PointCloud2Const
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat(new pcl::PointCloud<pcl::PointXYZHSV>());
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlat(new pcl::PointCloud<pcl::PointXYZHSV>());
     compFeatures(cornerPointsSharp, cornerPointsLessSharp, surfPointsFlat, surfPointsLessFlat, laserCloud, cloudSize);
+    std::cout << "points on sharp=" << cornerPointsSharp->size() << std::endl;
+    std::cout << "points on less sharp=" << cornerPointsLessSharp->size() << std::endl;
+    std::cout << "points on flat=" << surfPointsFlat->size() << std::endl;
+    std::cout << "points on less flat=" << surfPointsLessFlat->size() << std::endl;
 
     // Filter less flat points
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS(new pcl::PointCloud<pcl::PointXYZHSV>());
@@ -535,7 +539,7 @@ void scanRegistration::compFeatures(pcl::PointCloud<pcl::PointXYZHSV>::Ptr corne
                     fabs(laserCloud->points[cloudSortInd[j]].z) < 30) {
 
                 largestPickedNum++;
-                if (largestPickedNum <= 2) {
+                if (largestPickedNum <= LARGESTPICK) {
                     laserCloud->points[cloudSortInd[j]].v = 2;
                     cornerPointsSharp->push_back(laserCloud->points[cloudSortInd[j]]);
                 } else if (largestPickedNum <= 20) {
@@ -590,7 +594,7 @@ void scanRegistration::compFeatures(pcl::PointCloud<pcl::PointXYZHSV>::Ptr corne
                 surfPointsFlat->push_back(laserCloud->points[cloudSortInd[j]]);
 
                 smallestPickedNum++;
-                if (smallestPickedNum >= 4) {
+                if (smallestPickedNum >= PICKSMALL) {
                     break;
                 }
 

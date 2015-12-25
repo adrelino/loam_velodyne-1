@@ -26,6 +26,8 @@ namespace scanRegistration
 {
 
 #define CLOUD 2000000 // cloudSortInd and cloudSortInd
+#define PICKSMALL 4
+#define LARGESTPICK 2
 
 class scanRegistration
 {
