@@ -25,11 +25,12 @@
 namespace scanRegistration
 {
 
-#define CLOUD 1200 // cloudSortInd and cloudSortInd
+#define CLOUD 2000000 // cloudSortInd and cloudSortInd
 
 class scanRegistration
 {
 public:
+    scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::Publisher * pubLaserCloudLast);
     const double PI = 3.1415926;
     const double rad2deg = 180 / PI;
     const double deg2rad = PI / 180;
@@ -96,9 +97,9 @@ public:
     void VeloToStartIMU();
     void TransformToStartIMU(pcl::PointXYZHSV *p);
     void AccumulateIMUShift();
-    void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2, sensor_msgs::PointCloud2 &outExtreCur2, sensor_msgs::PointCloud2 &outCloudLast2);
+    void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2);
+    void laserCloudHandlerVelo(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2);
     void imuHandler(const sensor_msgs::Imu::ConstPtr& imuIn);
-    scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::Publisher * pubLaserCloudLast);
 
 private:
     double timeStart;
@@ -109,6 +110,13 @@ private:
 
     int createInsidePC(const pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud);
     float calcLaserAngle(const pcl::PointXYZ laserPointFirst, const pcl::PointXYZ inLaserPointLast);
+    void computeSmoothness(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize);
+    void setImuTrans(pcl::PointCloud<pcl::PointXYZHSV>::Ptr imuTrans);
+    bool isNewSweep(pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn);
+    void unknownFunction(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize);
+    void compFeatures(pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize);
+    void haveSweep();
+    void unknownImuStuff(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize);
 };
 
 }
