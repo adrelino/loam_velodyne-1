@@ -57,30 +57,30 @@ void loam_wrapper::newInPC(sensor_msgs::PointCloud2Ptr pc)
 
 }
 
-void loam_wrapper::newInPCKITTI(sensor_msgs::PointCloud2 &pc, sensor_msgs::PointCloud2 &nextpc)
+void loam_wrapper::newInPCKITTI(sensor_msgs::PointCloud2Ptr pc, sensor_msgs::PointCloud2Ptr nextpc)
 {
 
-    laserOd->laserCloudExtreCurHandler(nextpc);
-    laserOd->laserCloudLastHandler(pc);
+    laserOd->laserCloudExtreCurHandler(*nextpc);
+    laserOd->laserCloudLastHandler(*pc);
 
 
 
     // Laser Odometry
     laserOd->main_laserOdometry(pub, pubOdo);
 
-//    // Lasser Mapping
-//    laserMap->laserOdometryHandler(pubOdo);
+    // Lasser Mapping
+    laserMap->laserOdometryHandler(pubOdo);
 
-//    if (pub.width>0)
-//        laserMap->laserCloudLastHandler(pub);
+    if (pub.width>0)
+        laserMap->laserCloudLastHandler(pub);
 
-//    if (pub.width>0)
-//    laserMap->loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
+    if (pub.width>0)
+    laserMap->loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
 
-//    // maintanance
-//    transformMain->odomAftMappedHandler(odomAftMapped);
-//    transformMain->odomBefMappedHandler(odomBefMapped);
-//    transformMain->laserOdometryHandler(pubOdo,outlaserOdometry2);
+    // maintanance
+    transformMain->odomAftMappedHandler(odomAftMapped);
+    transformMain->odomBefMappedHandler(odomBefMapped);
+    transformMain->laserOdometryHandler(pubOdo,outlaserOdometry2);
 
 }
 
