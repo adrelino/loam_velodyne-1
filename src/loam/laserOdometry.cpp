@@ -292,15 +292,15 @@ void laserOdometry::laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserC
         laserCloudCornerLast->clear();
         laserCloudSurfLast->clear();
         for (int i = 0; i < laserCloudLastSize; i++) {
-            // is v=-2 or v=1
+            // is v=2 or v=-1
             if (fabs(laserCloudLast->points[i].v - 2) < 0.005 || fabs(laserCloudLast->points[i].v + 1) < 0.005) {
                 laserCloudExtreLast->push_back(laserCloudLast->points[i]);
             }
-            // is v=-2 or v=-1
+            // is v=2 or v=1
             if (fabs(laserCloudLast->points[i].v - 2) < 0.005 || fabs(laserCloudLast->points[i].v - 1) < 0.005) {
                 laserCloudCornerLast->push_back(laserCloudLast->points[i]);
             }
-            // is v=0 or v=1
+            // is v=0 or v=-1
             if (fabs(laserCloudLast->points[i].v) < 0.005 || fabs(laserCloudLast->points[i].v + 1) < 0.005) {
                 laserCloudSurfLast->push_back(laserCloudLast->points[i]);
             }
@@ -326,6 +326,8 @@ void laserOdometry::laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserC
             }
         }
         std::cout << "copied laserCloudExtreLast " << laserCloudExtreLast->size() << std::endl;
+        std::cout << "copied laserCloudCornerLast " << laserCloudCornerLast->size() << std::endl;
+        std::cout << "copied laserCloudSurfLast " << laserCloudSurfLast->size() << std::endl;
 
         pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreePointer = kdtreeCornerLLast;
         kdtreeCornerLLast = kdtreeCornerLast;
@@ -469,6 +471,8 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
 
         /// a number of iterations
         std::cout << "Will process " << iterNum << " iterations" << std::endl;
+        int number_planar=0;
+        int number_edge=0;
         for (int iterCount = 0; iterCount < iterNum; iterCount++)
         {
             std::cout << "iterCount=" << iterCount << std::endl;
@@ -510,19 +514,13 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
 
                         closestPointInd = pointSearchInd[0];
                         float closestPointTime = laserCloudSurfPtr->points[closestPointInd].h;
-
                         float pointSqDis, minPointSqDis2 = 1, minPointSqDis3 = 1;
                         for (int j = closestPointInd + 1; j < laserCloudSurfNum; j++) {
                             if (laserCloudSurfPtr->points[j].h > closestPointTime + 0.07) {
                                 break;
                             }
 
-                            pointSqDis = (laserCloudSurfPtr->points[j].x - extreSel.x) *
-                                    (laserCloudSurfPtr->points[j].x - extreSel.x) +
-                                    (laserCloudSurfPtr->points[j].y - extreSel.y) *
-                                    (laserCloudSurfPtr->points[j].y - extreSel.y) +
-                                    (laserCloudSurfPtr->points[j].z - extreSel.z) *
-                                    (laserCloudSurfPtr->points[j].z - extreSel.z);
+                            pointSqDis = SQRDIST(laserCloudSurfPtr->points[j].x,laserCloudSurfPtr->points[j].y,laserCloudSurfPtr->points[j].z,extreSel.x,extreSel.y,extreSel.z);
 
                             if (laserCloudSurfPtr->points[j].h < closestPointTime + 0.005) {
                                 if (pointSqDis < minPointSqDis2) {
@@ -541,12 +539,7 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                                 break;
                             }
 
-                            pointSqDis = (laserCloudSurfPtr->points[j].x - extreSel.x) *
-                                    (laserCloudSurfPtr->points[j].x - extreSel.x) +
-                                    (laserCloudSurfPtr->points[j].y - extreSel.y) *
-                                    (laserCloudSurfPtr->points[j].y - extreSel.y) +
-                                    (laserCloudSurfPtr->points[j].z - extreSel.z) *
-                                    (laserCloudSurfPtr->points[j].z - extreSel.z);
+                            pointSqDis = SQRDIST(laserCloudSurfPtr->points[j].x,laserCloudSurfPtr->points[j].y,laserCloudSurfPtr->points[j].z,extreSel.x,extreSel.y,extreSel.z);
 
                             if (laserCloudSurfPtr->points[j].h > closestPointTime - 0.005) {
                                 if (pointSqDis < minPointSqDis2) {
@@ -566,10 +559,8 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                             minPointInd2 = pointSelInd[3 * i + 1];
                             minPointInd3 = pointSelInd[3 * i + 2];
 
-                            float distX = extreSel.x - laserCloudSurfPtr->points[closestPointInd].x;
-                            float distY = extreSel.y - laserCloudSurfPtr->points[closestPointInd].y;
-                            float distZ = extreSel.z - laserCloudSurfPtr->points[closestPointInd].z;
-                            if (distX * distX + distY * distY + distZ * distZ > 1.0) {
+                            float dist = SQRDIST(extreSel.x,extreSel.y,extreSel.z,laserCloudSurfPtr->points[closestPointInd].x,laserCloudSurfPtr->points[closestPointInd].y,laserCloudSurfPtr->points[closestPointInd].z);
+                            if (dist > 1.0) {
                                 continue;
                             }
                         } else {
@@ -582,12 +573,9 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                         tripod2 = laserCloudSurfPtr->points[minPointInd2];
                         tripod3 = laserCloudSurfPtr->points[minPointInd3];
 
-                        float pa = (tripod2.y - tripod1.y) * (tripod3.z - tripod1.z)
-                                - (tripod3.y - tripod1.y) * (tripod2.z - tripod1.z);
-                        float pb = (tripod2.z - tripod1.z) * (tripod3.x - tripod1.x)
-                                - (tripod3.z - tripod1.z) * (tripod2.x - tripod1.x);
-                        float pc = (tripod2.x - tripod1.x) * (tripod3.y - tripod1.y)
-                                - (tripod3.x - tripod1.x) * (tripod2.y - tripod1.y);
+                        float pa = (tripod2.y - tripod1.y) * (tripod3.z - tripod1.z) - (tripod3.y - tripod1.y) * (tripod2.z - tripod1.z);
+                        float pb = (tripod2.z - tripod1.z) * (tripod3.x - tripod1.x) - (tripod3.z - tripod1.z) * (tripod2.x - tripod1.x);
+                        float pc = (tripod2.x - tripod1.x) * (tripod3.y - tripod1.y) - (tripod3.x - tripod1.x) * (tripod2.y - tripod1.y);
                         float pd = -(pa * tripod1.x + pb * tripod1.y + pc * tripod1.z);
 
                         float ps = sqrt(pa * pa + pb * pb + pc * pc);
@@ -605,8 +593,7 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
 
                         float s = 1;
                         if (iterCount >= 30) {
-                            s = 1 - 8 * fabs(pd2) / sqrt(sqrt(extreSel.x * extreSel.x
-                                                              + extreSel.y * extreSel.y + extreSel.z * extreSel.z));
+                            s = 1 - 8 * fabs(pd2) / sqrt(sqrt(extreSel.x * extreSel.x + extreSel.y * extreSel.y + extreSel.z * extreSel.z));
                         }
 
                         coeff.x = s * pa;
@@ -616,6 +603,7 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
 
                         if (s > 0.2 || iterNum < 30) {
                             laserCloudExtreOri->push_back(extreOri);
+                            number_edge++;
                             //laserCloudExtreSel->push_back(extreSel);
                             //laserCloudExtreProj->push_back(extreProj);
                             //laserCloudSel->push_back(tripod1);
@@ -646,38 +634,28 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
 
                         closestPointInd = pointSearchInd[0];
                         float closestPointTime = laserCloudCornerPtr->points[closestPointInd].h;
-
                         float pointSqDis, minPointSqDis2 = 1;
                         for (int j = closestPointInd + 1; j < laserCloudCornerNum; j++) {
                             if (laserCloudCornerPtr->points[j].h > closestPointTime + 0.07) {
                                 break;
                             }
 
-                            pointSqDis = (laserCloudCornerPtr->points[j].x - extreSel.x) *
-                                    (laserCloudCornerPtr->points[j].x - extreSel.x) +
-                                    (laserCloudCornerPtr->points[j].y - extreSel.y) *
-                                    (laserCloudCornerPtr->points[j].y - extreSel.y) +
-                                    (laserCloudCornerPtr->points[j].z - extreSel.z) *
-                                    (laserCloudCornerPtr->points[j].z - extreSel.z);
+                            pointSqDis = SQRDIST(laserCloudCornerPtr->points[j].x,laserCloudCornerPtr->points[j].y,laserCloudCornerPtr->points[j].z, extreSel.x, extreSel.y, extreSel.z);
 
-                            if (laserCloudCornerPtr->points[j].h > closestPointTime + 0.005) {
+                            if (laserCloudCornerPtr->points[j].h > closestPointTime + 0.005){
                                 if (pointSqDis < minPointSqDis2) {
                                     minPointSqDis2 = pointSqDis;
                                     minPointInd2 = j;
                                 }
                             }
                         }
+
                         for (int j = closestPointInd - 1; j >= 0; j--) {
                             if (laserCloudCornerPtr->points[j].h < closestPointTime - 0.07) {
                                 break;
                             }
 
-                            pointSqDis = (laserCloudCornerPtr->points[j].x - extreSel.x) *
-                                    (laserCloudCornerPtr->points[j].x - extreSel.x) +
-                                    (laserCloudCornerPtr->points[j].y - extreSel.y) *
-                                    (laserCloudCornerPtr->points[j].y - extreSel.y) +
-                                    (laserCloudCornerPtr->points[j].z - extreSel.z) *
-                                    (laserCloudCornerPtr->points[j].z - extreSel.z);
+                            pointSqDis = SQRDIST(laserCloudCornerPtr->points[j].x,laserCloudCornerPtr->points[j].y,laserCloudCornerPtr->points[j].z,extreSel.x,extreSel.y,extreSel.z);
 
                             if (laserCloudCornerPtr->points[j].h < closestPointTime - 0.005) {
                                 if (pointSqDis < minPointSqDis2) {
@@ -691,10 +669,8 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                             closestPointInd = pointSelInd[3 * i];
                             minPointInd2 = pointSelInd[3 * i + 1];
 
-                            float distX = extreSel.x - laserCloudCornerPtr->points[closestPointInd].x;
-                            float distY = extreSel.y - laserCloudCornerPtr->points[closestPointInd].y;
-                            float distZ = extreSel.z - laserCloudCornerPtr->points[closestPointInd].z;
-                            if (distX * distX + distY * distY + distZ * distZ > 1.0) {
+                            float dist = SQRDIST(extreSel.x,extreSel.y,extreSel.z,laserCloudCornerPtr->points[closestPointInd].x,laserCloudCornerPtr->points[closestPointInd].y,laserCloudCornerPtr->points[closestPointInd].z);
+                            if (dist > 1.0) {
                                 continue;
                             }
                         } else {
@@ -702,7 +678,8 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                         }
                     }
 
-                    if (minPointInd2 >= 0) {
+                    if (minPointInd2 >= 0)
+                    {
                         tripod1 = laserCloudCornerPtr->points[closestPointInd];
                         tripod2 = laserCloudCornerPtr->points[minPointInd2];
 
@@ -724,16 +701,9 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                                           * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
 
                         float l12 = sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2) + (z1 - z2)*(z1 - z2));
-
-                        float la = ((y1 - y2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                                    + (z1 - z2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
-
-                        float lb = -((x1 - x2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                                     - (z1 - z2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
-
-                        float lc = -((x1 - x2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                                     + (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
-
+                        float la = ((y1 - y2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) + (z1 - z2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
+                        float lb = -((x1 - x2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))  - (z1 - z2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
+                        float lc = -((x1 - x2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))  + (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
                         float ld2 = a012 / l12;
 
                         extreProj = extreSel;
@@ -748,8 +718,10 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                         coeff.z = s * lc;
                         coeff.h = s * ld2;
 
-                        if (s > 0.4) {
+                        if (s > 0.4)
+                        {
                             laserCloudExtreOri->push_back(extreOri);
+                            number_planar++;
                             //laserCloudExtreSel->push_back(extreSel);
                             //laserCloudExtreProj->push_back(extreProj);
                             //laserCloudSel->push_back(tripod1);
@@ -762,13 +734,21 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                             }
                         } else {
                             //laserCloudExtreUnsel->push_back(extreSel);
+                            //std::cout << "s=" << s << std::endl;
                         }
+                    }
+                    else
+                    {
+                        // std::cout << "minPointInd2)" << minPointInd2 << " >= 0" << std::endl;
                     }
                 }
             }
             int extrePointSelNum = laserCloudExtreOri->points.size();
-
+            std::cout << "extrePointSelNum=" << extrePointSelNum << std::endl;
+            std::cout << "number_planar=" << number_planar << std::endl;
+            std::cout << "number_edge=" << number_edge << std::endl;
             if (extrePointSelNum < 10) {
+                ROS_INFO ("extrePointSelNum < 10");
                 continue;
             }
 
@@ -858,7 +838,7 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                 transform[4] += matX.at<float>(4, 0);
                 transform[5] += matX.at<float>(5, 0);
             } else {
-                //ROS_INFO ("Odometry update out of bound");
+                ROS_INFO ("Odometry update out of bound");
             }
 
             float deltaR = sqrt(matX.at<float>(0, 0) * 180 / PI * matX.at<float>(0, 0) * 180 / PI
@@ -869,10 +849,11 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                                 + matX.at<float>(5, 0) * 100 * matX.at<float>(5, 0) * 100);
 
             if (deltaR < 0.1 && deltaT < 0.1) {
+                ROS_INFO ("deltaR=%d < 0.1 && deltaT=%d < 0.1", deltaR, deltaT);
                 break;
             }
 
-            //ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
+            ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
         }
 
         /*sensor_msgs::PointCloud2 pc12;
