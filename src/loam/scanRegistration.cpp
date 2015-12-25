@@ -3,6 +3,37 @@
 namespace scanRegistration
 {
 
+scanRegistration::scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::Publisher * pubLaserCloudLast)
+{
+    laserCloudExtreCur.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
+    laserCloudLessExtreCur.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
+    //ros::init(argc, argv, "scanRegistration");
+    //ros::NodeHandle nh;
+
+    //      ros::Subscriber subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2>
+    //                                      ("/sync_scan_cloud_filtered", 2, laserCloudHandler);
+
+    //      ros::Subscriber subImu = nh.subscribe<sensor_msgs::Imu>
+    //                               ("/microstrain/imu", 5, imuHandler);
+
+    //      ros::Publisher pubLaserCloudExtreCur = nh.advertise<sensor_msgs::PointCloud2>
+    //                                             ("/laser_cloud_extre_cur", 2);
+
+    //      ros::Publisher pubLaserCloudLast = nh.advertise<sensor_msgs::PointCloud2>
+    //                                         ("/laser_cloud_last", 2);
+
+    this->pubLaserCloudExtreCurPointer = pubLaserCloudExtreCur;
+    this->pubLaserCloudLastPointer = pubLaserCloudLast;
+
+    //      ros::spin();
+
+    //      return 0;
+
+    timeStart = 0;
+    timeLasted = 0;
+
+}
+
 void scanRegistration::ShiftToStartIMU()
 {
     float x1 = cos(imuYawStart) * imuShiftFromStartXCur - sin(imuYawStart) * imuShiftFromStartZCur;
@@ -196,14 +227,14 @@ void scanRegistration::laserCloudHandlerVelo(const sensor_msgs::PointCloud2Const
     pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn(new pcl::PointCloud<pcl::PointXYZ>());
     pcl::fromROSMsg(*laserCloudIn2, *laserCloudIn);
 
-    std::cout << "laserCloudIn = " << laserCloudIn->size() << std::endl;
+    //std::cout << "laserCloudIn = " << laserCloudIn->size() << std::endl;
 
     // Take input cloud at copy it to PCL but only if inside of circle of 0.5m
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud(new pcl::PointCloud<pcl::PointXYZHSV>());
     int cloudSize = createInsidePC(laserCloudIn,laserCloud);
     laserCloudIn->clear();
 
-    std::cout << "laserCloud = " << laserCloud->size() << std::endl;
+    //std::cout << "laserCloud = " << laserCloud->size() << std::endl;
 
 
     /// Computes smoothness for each point
@@ -304,36 +335,7 @@ void scanRegistration::imuHandler(const sensor_msgs::Imu::ConstPtr& imuIn)
     }
 }
 
-scanRegistration::scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::Publisher * pubLaserCloudLast)
-{
-    laserCloudExtreCur.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
-    laserCloudLessExtreCur.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
-    //ros::init(argc, argv, "scanRegistration");
-    //ros::NodeHandle nh;
 
-    //      ros::Subscriber subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2>
-    //                                      ("/sync_scan_cloud_filtered", 2, laserCloudHandler);
-
-    //      ros::Subscriber subImu = nh.subscribe<sensor_msgs::Imu>
-    //                               ("/microstrain/imu", 5, imuHandler);
-
-    //      ros::Publisher pubLaserCloudExtreCur = nh.advertise<sensor_msgs::PointCloud2>
-    //                                             ("/laser_cloud_extre_cur", 2);
-
-    //      ros::Publisher pubLaserCloudLast = nh.advertise<sensor_msgs::PointCloud2>
-    //                                         ("/laser_cloud_last", 2);
-
-    this->pubLaserCloudExtreCurPointer = pubLaserCloudExtreCur;
-    this->pubLaserCloudLastPointer = pubLaserCloudLast;
-
-    //      ros::spin();
-
-    //      return 0;
-
-    timeStart = 0;
-    timeLasted = 0;
-
-}
 
 // Take input cloud at copy it to PCL but only if inside of circle of 0.5m
 int scanRegistration::createInsidePC(const pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud)
