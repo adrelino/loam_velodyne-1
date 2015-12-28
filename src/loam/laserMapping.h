@@ -104,6 +104,7 @@ private:
     void transformAssociateToMap();
     void transformUpdate();
     void pointAssociateToMap(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po);
-
+    void processSurfPoints(int iterCount);
+    void processCorner();
 };
 }
