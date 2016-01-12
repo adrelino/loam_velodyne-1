@@ -1,0 +1,3 @@
+[submodule "src/KITTI_util"]
+	path = src/KITTI_util
+	url = git://github.com/sebdi/KITTI_util.git
