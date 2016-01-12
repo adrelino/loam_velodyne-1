@@ -29,42 +29,111 @@ struct data
 int main( int argc, char** argv )
 {
     ros::init(argc, argv, "KITTI");
-
-
     KITTI kitti;
-
     loam_wrapper loam;
+
+
+
+    std::vector<nav_msgs::Odometry> gt;
+    kitti.getGtCameraPosesAsNavMsg(gt);
+//    std::vector<Eigen::Matrix3d> Rs;
+//    std::vector<Eigen::Vector3d> ts;
+//    kitti.getGtCameraPoses(Rs,ts);
+//    pcl::PointCloud<pcl::PointXYZ> msg;
+//    kitti.getPointCloud(msg,0);
+//    pcl::PointCloud<pcl::PointXYZ> msg2;
+//    kitti.getPointCloud(msg2,2);
+//    Eigen::Matrix3d velo_to_cam_R = Rs[2];
+//    Eigen::Vector3d velo_to_cam_t = ts[2];
+//    Eigen::Matrix4d T;
+//    T << velo_to_cam_R(0,0), velo_to_cam_R(0,1), velo_to_cam_R(0,2), velo_to_cam_t(0),
+//            velo_to_cam_R(1,0), velo_to_cam_R(1,1), velo_to_cam_R(1,2), velo_to_cam_t(1),
+//            velo_to_cam_R(2,0), velo_to_cam_R(2,1), velo_to_cam_R(2,2), velo_to_cam_t(2),
+//            0 , 0 , 0 ,1;
+//    std::cout << "T=" << T << std::endl;
+//    pcl::transformPointCloud (msg2, msg2, T);
+//    sensor_msgs::PointCloud2 first;
+//    pcl::toROSMsg(msg,first);
+//    sensor_msgs::PointCloud2 second;
+//    pcl::toROSMsg(msg2,second);
+//    sleep(1);
+//    first.header.stamp = ros::Time().now();
+//    first.header.frame_id = "/camera_init_2";
+//    loam.publishInput(first);
+//    sleep(1);
+//    second.header.stamp = ros::Time().now();
+//    second.header.frame_id = "/camera_init_2";
+//    loam.publishLaserCloudLast2(second);
+
+
+
+
+
+
+//    loam.mappingTest(first,second,T);
+//    std::cout << "---------" << std::endl;
+
+
+//    kitti.getPointCloud(msg,1);
+//    kitti.getPointCloud(msg2,2);
+//    //pcl::transformPointCloud (msg, msg, T);
+//    pcl::toROSMsg(msg,first);
+//    velo_to_cam_R = Rs[2];
+//    velo_to_cam_t = ts[2];
+//    Eigen::Matrix4d T2;
+//    T2 << velo_to_cam_R(0,0), velo_to_cam_R(0,1), velo_to_cam_R(0,2), velo_to_cam_t(0),
+//            velo_to_cam_R(1,0), velo_to_cam_R(1,1), velo_to_cam_R(1,2), velo_to_cam_t(1),
+//            velo_to_cam_R(2,0), velo_to_cam_R(2,1), velo_to_cam_R(2,2), velo_to_cam_t(2),
+//            0 , 0 , 0 ,1;
+//    T2 = T.inverse() * T2;
+//    std::cout << "T2=" << T2 << std::endl;
+
+//    pcl::toROSMsg(msg2,second);
+//    first.header.stamp = ros::Time().now();
+//    first.header.frame_id = "/camera_init_2";
+//    //loam.publishInput(first);
+//    sleep(1);
+//    second.header.stamp = ros::Time().now();
+//    second.header.frame_id = "/camera_init_2";
+//    //loam.publishLaserCloudLast2(second);
+//    loam.mappingTest(first,second,T2);
+
+//    return 0;
+
+
+
+
+
+
+
+
+
+    std::vector<Eigen::Matrix4d> Ts;
+    kitti.getGtCameraPoses(Ts);
+    kitti.writeResult(Ts);
+
+
 
 
     sensor_msgs::PointCloud2 pc;
     sensor_msgs::PointCloud2 pc_next;
-    sensor_msgs::PointCloud2Ptr pc_ptr;
-    sensor_msgs::PointCloud2Ptr pc_ptr_next;
     for (int i=0; i<kitti.velpoints.size()-1;i++)
     {
-
 
         kitti.getPointCloud2(pc,i);
         pc.header.stamp = ros::Time().now();
         pc.header.frame_id = "/camera_init_2";
-        //sleep(4);
-
-        loam.publishInput(pc);
-
-
 
         kitti.getPointCloud2(pc_next,i+1);
         pc_next.header.stamp = ros::Time().now();
         pc_next.header.frame_id = "/camera_init_2";
 
-    //    pc_ptr = pc.;
-
-//        pc_ptr.reset(&pc);
-//        pc_ptr_next.reset(&pc_next);
-
-         loam.newInPCKITTI(pc,pc_next);
+        //loam.publishGT(gt[i+1]);
+        loam.newInPCKITTI(pc,pc_next,Ts[i+1]);
+        std::cout << "[INFO]: i=" << i << std::endl;
 
 
+        //sleep(5);
     }
 
 
@@ -119,3 +188,6 @@ int main( int argc, char** argv )
 
     return 0;
 }
+
+
+

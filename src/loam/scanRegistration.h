@@ -25,13 +25,17 @@
 namespace scanRegistration
 {
 
-#define CLOUD 2000000 // cloudSortInd and cloudSortInd
-#define PICKSMALL 4
-#define LARGESTPICK 2
-
+#define CLOUD 2100000 // cloudSortInd and cloudSortInd
+#define PICKSMALL 50
+#define LARGESTPICK 200
+#define LARGESTPICK_SEC 300
 class scanRegistration
 {
 public:
+    const double maxRangeFeaturesCorners = 50; // originally 30
+    const double minRangeFeaturesCorners = 0.7; // originally 0.3
+    const double maxRangeFeaturesFlat = 50; // originally 30
+    const double minRangeFeaturesFlat = 2.0; // originally 0.3
     scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::Publisher * pubLaserCloudLast);
     const double PI = 3.1415926;
     const double rad2deg = 180 / PI;
@@ -54,6 +58,9 @@ public:
 
     sensor_msgs::PointCloud2 laserCloudExtreCur2;
     sensor_msgs::PointCloud2 laserCloudLast2;
+
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr outLaserCloudExtreCur2;
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr outLaserCloudLast2;
 
     ros::Publisher* pubLaserCloudExtreCurPointer;
     ros::Publisher* pubLaserCloudLastPointer;
@@ -100,7 +107,7 @@ public:
     void TransformToStartIMU(pcl::PointXYZHSV *p);
     void AccumulateIMUShift();
     void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2);
-    void laserCloudHandlerVelo(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2);
+    void laserCloudHandlerVelo(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS, bool pubExtre=false, bool pubLast=false);
     void imuHandler(const sensor_msgs::Imu::ConstPtr& imuIn);
 
 private:

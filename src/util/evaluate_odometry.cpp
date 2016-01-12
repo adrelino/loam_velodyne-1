@@ -405,11 +405,11 @@ void saveStats (vector<errors> err,string dir) {
   fclose(fp);
 }
 
-bool eval (string result_sha,Mail* mail) {
+bool eval (string result_sha) {
 
   // ground truth and result directories
-  string gt_dir         = "data/odometry/poses";
-  string result_dir     = "results/" + result_sha;
+  string gt_dir         = "/home/sebastian/Dropbox/KITTI/poses";
+  string result_dir     = "/home/sebastian/Dropbox/KITTI/results";
   string error_dir      = result_dir + "/errors";
   string plot_path_dir  = result_dir + "/plot_path";
   string plot_error_dir = result_dir + "/plot_error";
@@ -423,7 +423,7 @@ bool eval (string result_sha,Mail* mail) {
   vector<errors> total_err;
 
   // for all sequences do
-  for (int32_t i=11; i<22; i++) {
+  for (int32_t i=0; i<10; i++) {
    
     // file name
     char file_name[256];
@@ -431,14 +431,15 @@ bool eval (string result_sha,Mail* mail) {
     
     // read ground truth and result poses
     vector<Matrix> poses_gt     = loadPoses(gt_dir + "/" + file_name);
-    vector<Matrix> poses_result = loadPoses(result_dir + "/data/" + file_name);
+    vector<Matrix> poses_result = loadPoses(result_dir + "/" + file_name);
    
     // plot status
-    mail->msg("Processing: %s, poses: %d/%d",file_name,poses_result.size(),poses_gt.size());
+    //mail->msg("Processing: %s, poses: %d/%d",file_name,poses_result.size(),poses_gt.size());
     
     // check for errors
     if (poses_gt.size()==0 || poses_result.size()!=poses_gt.size()) {
-      mail->msg("ERROR: Couldn't read (all) poses of: %s", file_name);
+      //mail->msg("ERROR: Couldn't read (all) poses of: %s", file_name);
+        std::cout << "ERROR: Couldn't read (all) poses of: " << file_name << std::endl;
       return false;
     }
 
@@ -480,28 +481,28 @@ bool eval (string result_sha,Mail* mail) {
 
 int32_t main (int32_t argc,char *argv[]) {
 
-  // we need 2 or 4 arguments!
-  if (argc!=2 && argc!=4) {
-    cout << "Usage: ./eval_odometry result_sha [user_sha email]" << endl;
-    return 1;
-  }
+//  // we need 2 or 4 arguments!
+//  if (argc!=2 && argc!=4) {
+//    cout << "Usage: ./eval_odometry result_sha [user_sha email]" << endl;
+//    return 1;
+//  }
 
-  // read arguments
-  string result_sha = argv[1];
+//  // read arguments
+//  string result_sha = argv[1];
 
-  // init notification mail
-  Mail *mail;
-  if (argc==4) mail = new Mail(argv[3]);
-  else         mail = new Mail();
-  mail->msg("Thank you for participating in our evaluation!");
-
+//  // init notification mail
+//  Mail *mail;
+//  if (argc==4) mail = new Mail(argv[3]);
+//  else         mail = new Mail();
+//  mail->msg("Thank you for participating in our evaluation!");
+  string result_sha = "";
   // run evaluation
-  bool success = eval(result_sha,mail);
+  bool success = eval(result_sha);
 //  if (argc==4) mail->finalize(success,"odometry",result_sha,argv[2]);
 //  else         mail->finalize(success,"odometry",result_sha);
 
   // send mail and exit
-  delete mail;
+  //delete mail;
   return 0;
 }
 

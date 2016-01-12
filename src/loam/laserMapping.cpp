@@ -4,27 +4,14 @@ namespace laserMapping
 
 laserMapping::laserMapping(ros::Publisher * pubOdomBefMapped, ros::Publisher * pubOdomAftMapped, ros::Publisher * pubLaserCloudSurround)
 {
-    this->pubOdomBefMapped = pubOdomAftMapped;
+    this->pubOdomBefMapped = pubOdomBefMapped;
     this->pubOdomAftMapped = pubOdomAftMapped;
     this->pubLaserCloudSurround = pubLaserCloudSurround;
-    //ros::init(argc, argv, "laserMapping");
-    //ros::NodeHandle nh;
 
-    //  ros::Subscriber subLaserCloudLast2 = nh.subscribe<sensor_msgs::PointCloud2>
-    //                                       ("/laser_cloud_last_2", 2, laserCloudLastHandler);
-
-    //  ros::Subscriber subLaserOdometry = nh.subscribe<nav_msgs::Odometry>
-    //                                     ("/cam_to_init", 5, laserOdometryHandler);
-
-    //ros::Publisher pubLaserCloudSurround = nh.advertise<sensor_msgs::PointCloud2>
-    //("/laser_cloud_surround", 1);
 
     //ros::Publisher pub1 = nh.advertise<sensor_msgs::PointCloud2> ("/pc1", 1);
-
     //ros::Publisher pub2 = nh.advertise<sensor_msgs::PointCloud2> ("/pc2", 1);
-
     //ros::Publisher pub3 = nh.advertise<sensor_msgs::PointCloud2> ("/pc3", 1);
-
     //ros::Publisher pub4 = nh.advertise<sensor_msgs::PointCloud2> ("/pc4", 1);
 
     //ros::Publisher pubOdomBefMapped = nh.advertise<nav_msgs::Odometry> ("/bef_mapped_to_init_2", 5);
@@ -45,10 +32,6 @@ laserMapping::laserMapping(ros::Publisher * pubOdomBefMapped, ros::Publisher * p
         init = true;
     }
 
-    //  ros::Rate rate(100);
-    //  bool status = ros::ok();
-    //  while (status) {
-    //    ros::spinOnce();
 
     matA0 = cv::Mat(5, 3, CV_32F, cv::Scalar::all(0));
     matB0 = cv::Mat(5, 1, CV_32F, cv::Scalar::all(-1));
@@ -240,10 +223,7 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
     odomAftMapped.header.frame_id = "/camera_init_2";
     odomAftMapped.child_frame_id = "/aft_mapped";
 
-    //std::cout << "newLaserCloudLast=" << newLaserCloudLast << ", newLaserOdometry=" << newLaserOdometry << std::endl;
-    //std::cout << "fabs(timeLaserCloudLast - timeLaserOdometry) < 0.005 = " << (fabs(timeLaserCloudLast - timeLaserOdometry) < 0.005) << std::endl;
-    std::cout << "timeLaserCloudLast=" << timeLaserCloudLast << ", timeLaserOdometry=" << timeLaserOdometry << std::endl;
-    if (newLaserCloudLast && newLaserOdometry && fabs(timeLaserCloudLast - timeLaserOdometry) < 0.005)
+    if (newLaserCloudLast && newLaserOdometry) // && fabs(timeLaserCloudLast - timeLaserOdometry) < 0.005)
     {
         newLaserCloudLast = false;
         newLaserOdometry = false;
@@ -467,7 +447,7 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
                     transformTobeMapped[4] += matX.at<float>(4, 0);
                     transformTobeMapped[5] += matX.at<float>(5, 0);
                 } else {
-                    //ROS_INFO ("Mapping update out of bound");
+                    ROS_WARN ("Odometry update out of bound: tx=%f, ty=%f, tz=%f",matX.at<float>(3, 0),matX.at<float>(4, 0),matX.at<float>(5, 0));
                 }
 
                 float deltaR = sqrt(matX.at<float>(0, 0) * 180 / PI * matX.at<float>(0, 0) * 180 / PI
@@ -477,9 +457,10 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
                                     + matX.at<float>(4, 0) * 100 * matX.at<float>(4, 0) * 100
                                     + matX.at<float>(5, 0) * 100 * matX.at<float>(5, 0) * 100);
 
-                if (deltaR < 0.05 && deltaT < 0.05) {
-                    break;
-                }
+//                if (deltaR < 0.1 && deltaT < 0.1) {
+//                    ROS_WARN ("[MAPPING] deltaR=%f < 0.1 && deltaT=%f < 0.1", deltaR, deltaT);
+//                    break;
+//                }
 
                 //ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
             }
@@ -489,8 +470,8 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
 
         ///
         for (int i = 0; i < laserCloudLastNum; i++) {
-            if (fabs(laserCloudLast->points[i].x) > 1.2 || fabs(laserCloudLast->points[i].y) > 1.2 ||
-                    fabs(laserCloudLast->points[i].z) > 1.2) {
+            if (fabs(laserCloudLast->points[i].x) > 1.2 || fabs(laserCloudLast->points[i].y) > 1.2 || fabs(laserCloudLast->points[i].z) > 1.2)
+            {
 
                 pointAssociateToMap(&laserCloudLast->points[i], &pointSel);
 
@@ -503,6 +484,8 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
                 if (pointSel.z + 10.0 < 0) cubeK--;
 
                 int cubeInd = cubeI + laserCloudWidth * cubeJ + laserCloudWidth * laserCloudHeight * cubeK;
+                //std::cout << "cubeInd=" << cubeInd << std::endl;
+                if (cubeInd>0 && cubeInd<laserCloudNum)
                 laserCloudArray[cubeInd]->push_back(pointSel);
             }
         }
@@ -575,6 +558,7 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
 
         odomBefMapped = odomBefMapped;
         pubOdomBefMapped->publish(odomBefMapped);
+        ROS_WARN ("PUBLISHED MAPPING tx=%f, ty=%f, tz=%f",transformBefMapped[3],transformBefMapped[4],transformBefMapped[5]);
 
         geoQuat = tf::createQuaternionMsgFromRollPitchYaw
                 (transformAftMapped[2], -transformAftMapped[0], -transformAftMapped[1]);
@@ -587,6 +571,8 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
         odomAftMapped.pose.pose.position.x = transformAftMapped[3];
         odomAftMapped.pose.pose.position.y = transformAftMapped[4];
         odomAftMapped.pose.pose.position.z = transformAftMapped[5];
+
+        ROS_WARN ("PUBLISHED MAPPING tx=%f, ty=%f, tz=%f",transformAftMapped[3],transformAftMapped[4],transformAftMapped[5]);
 
         odomAftMapped = odomAftMapped;
         pubOdomAftMapped->publish(odomAftMapped);

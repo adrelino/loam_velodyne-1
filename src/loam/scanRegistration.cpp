@@ -7,31 +7,15 @@ scanRegistration::scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::
 {
     laserCloudExtreCur.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
     laserCloudLessExtreCur.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
-    //ros::init(argc, argv, "scanRegistration");
-    //ros::NodeHandle nh;
 
-    //      ros::Subscriber subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2>
-    //                                      ("/sync_scan_cloud_filtered", 2, laserCloudHandler);
-
-    //      ros::Subscriber subImu = nh.subscribe<sensor_msgs::Imu>
-    //                               ("/microstrain/imu", 5, imuHandler);
-
-    //      ros::Publisher pubLaserCloudExtreCur = nh.advertise<sensor_msgs::PointCloud2>
-    //                                             ("/laser_cloud_extre_cur", 2);
-
-    //      ros::Publisher pubLaserCloudLast = nh.advertise<sensor_msgs::PointCloud2>
-    //                                         ("/laser_cloud_last", 2);
+    outLaserCloudExtreCur2.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
+    outLaserCloudLast2.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
 
     this->pubLaserCloudExtreCurPointer = pubLaserCloudExtreCur;
     this->pubLaserCloudLastPointer = pubLaserCloudLast;
 
-    //      ros::spin();
-
-    //      return 0;
-
     timeStart = 0;
     timeLasted = 0;
-
 }
 
 void scanRegistration::ShiftToStartIMU()
@@ -212,7 +196,7 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
     skipFrameCount++;
 }
 
-void scanRegistration::laserCloudHandlerVelo(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2)
+void scanRegistration::laserCloudHandlerVelo(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS, bool pubExtre, bool pubLast)
 {
     if (!systemInited) {
         initTime = laserCloudIn2->header.stamp.toSec();
@@ -227,14 +211,14 @@ void scanRegistration::laserCloudHandlerVelo(const sensor_msgs::PointCloud2Const
     pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn(new pcl::PointCloud<pcl::PointXYZ>());
     pcl::fromROSMsg(*laserCloudIn2, *laserCloudIn);
 
-    //std::cout << "laserCloudIn = " << laserCloudIn->size() << std::endl;
+    std::cout << "laserCloudIn = " << laserCloudIn->size() << std::endl;
 
     // Take input cloud at copy it to PCL but only if inside of circle of 0.5m
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud(new pcl::PointCloud<pcl::PointXYZHSV>());
     int cloudSize = createInsidePC(laserCloudIn,laserCloud);
     laserCloudIn->clear();
 
-    //std::cout << "laserCloud = " << laserCloud->size() << std::endl;
+    std::cout << "laserCloud = " << laserCloud->size() << std::endl;
 
 
     /// Computes smoothness for each point
@@ -244,9 +228,6 @@ void scanRegistration::laserCloudHandlerVelo(const sensor_msgs::PointCloud2Const
     unknownFunction(laserCloud,cloudSize);
 
     // Compute Features
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp(new pcl::PointCloud<pcl::PointXYZHSV>());
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp(new pcl::PointCloud<pcl::PointXYZHSV>());
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat(new pcl::PointCloud<pcl::PointXYZHSV>());
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlat(new pcl::PointCloud<pcl::PointXYZHSV>());
     compFeatures(cornerPointsSharp, cornerPointsLessSharp, surfPointsFlat, surfPointsLessFlat, laserCloud, cloudSize);
     std::cout << "points on sharp=" << cornerPointsSharp->size() << std::endl;
@@ -255,7 +236,6 @@ void scanRegistration::laserCloudHandlerVelo(const sensor_msgs::PointCloud2Const
     std::cout << "points on less flat=" << surfPointsLessFlat->size() << std::endl;
 
     // Filter less flat points
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS(new pcl::PointCloud<pcl::PointXYZHSV>());
     pcl::VoxelGrid<pcl::PointXYZHSV> downSizeFilter;
     downSizeFilter.setInputCloud(surfPointsLessFlat);
     downSizeFilter.setLeafSize(0.1, 0.1, 0.1);
@@ -269,34 +249,37 @@ void scanRegistration::laserCloudHandlerVelo(const sensor_msgs::PointCloud2Const
 
     // reset
     laserCloud->clear();
-    cornerPointsSharp->clear();
-    cornerPointsLessSharp->clear();
-    surfPointsFlat->clear();
-    surfPointsLessFlat->clear();
-    surfPointsLessFlatDS->clear();
+//    cornerPointsSharp->clear(); // Because we transport this now
+//    cornerPointsLessSharp->clear();
+//    surfPointsFlat->clear();
+//    surfPointsLessFlat->clear();
+//    surfPointsLessFlatDS->clear();
 
 
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr imuTrans(new pcl::PointCloud<pcl::PointXYZHSV>(4, 1));
     setImuTrans(imuTrans);
 
+    *outLaserCloudExtreCur2 = *laserCloudExtreCur; // + *imuTrans;
 
-    pcl::toROSMsg(*laserCloudExtreCur + *imuTrans, laserCloudExtreCur2);
+
+    pcl::toROSMsg(*outLaserCloudExtreCur2, laserCloudExtreCur2);
     laserCloudExtreCur2.header.stamp = ros::Time().fromSec(timeScanCur);
-    laserCloudExtreCur2.header.frame_id = "/camera";
-    pubLaserCloudExtreCurPointer->publish(laserCloudExtreCur2);
-
-    //imuTrans->clear();
+    laserCloudExtreCur2.header.frame_id = "/camera_init_2";
+    if (pubExtre)
+        pubLaserCloudExtreCurPointer->publish(laserCloudExtreCur2);
 
 
     *laserCloudExtreCur += *laserCloudLessExtreCur;
-    pcl::toROSMsg(*laserCloudExtreCur + *imuTrans, laserCloudLast2);
+    *outLaserCloudLast2 = *laserCloudExtreCur + *imuTrans;
     imuTrans->clear();
-    laserCloudLast2.header.stamp = ros::Time().fromSec(timeScanLast);
-    laserCloudLast2.header.frame_id = "/camera";
     laserCloudExtreCur->clear();
     laserCloudLessExtreCur->clear();
-    pubLaserCloudLastPointer->publish(laserCloudLast2);
 
+    pcl::toROSMsg(*outLaserCloudLast2, laserCloudLast2);
+    laserCloudLast2.header.stamp = ros::Time().fromSec(timeScanLast);
+    laserCloudLast2.header.frame_id = "/camera_init_2";
+    if (pubLast)
+        pubLaserCloudLastPointer->publish(laserCloudLast2);
 
 
 
@@ -349,7 +332,7 @@ int scanRegistration::createInsidePC(const pcl::PointCloud<pcl::PointXYZ>::Ptr l
         laserPointIn.h = timeLasted;
         laserPointIn.v = 0;
 
-        if (!(fabs(laserPointIn.x) < 0.5 && fabs(laserPointIn.y) < 0.5 && fabs(laserPointIn.z) < 0.5) & cloudSize<CLOUD)
+        if (!(fabs(laserPointIn.x) < 0.5 && fabs(laserPointIn.y) < 0.8 && fabs(laserPointIn.z) < 0.8) & cloudSize<CLOUD)
         {
             laserCloud->push_back(laserPointIn);
             cloudSortInd[cloudSize] = cloudSize;
@@ -533,18 +516,18 @@ void scanRegistration::compFeatures(pcl::PointCloud<pcl::PointXYZHSV>::Ptr corne
         for (int j = ep; j >= sp; j--) {
             if (cloudNeighborPicked[cloudSortInd[j]] == 0 &&
                     laserCloud->points[cloudSortInd[j]].s > 0.1 &&
-                    (fabs(laserCloud->points[cloudSortInd[j]].x) > 0.3 ||
-                     fabs(laserCloud->points[cloudSortInd[j]].y) > 0.3 ||
-                     fabs(laserCloud->points[cloudSortInd[j]].z) > 0.3) &&
-                    fabs(laserCloud->points[cloudSortInd[j]].x) < 30 &&
-                    fabs(laserCloud->points[cloudSortInd[j]].y) < 30 &&
-                    fabs(laserCloud->points[cloudSortInd[j]].z) < 30) {
+                    (fabs(laserCloud->points[cloudSortInd[j]].x) > minRangeFeaturesCorners ||
+                     fabs(laserCloud->points[cloudSortInd[j]].y) > minRangeFeaturesCorners ||
+                     fabs(laserCloud->points[cloudSortInd[j]].z) > minRangeFeaturesCorners) &&
+                    fabs(laserCloud->points[cloudSortInd[j]].x) < maxRangeFeaturesCorners &&
+                    fabs(laserCloud->points[cloudSortInd[j]].y) < maxRangeFeaturesCorners &&
+                    fabs(laserCloud->points[cloudSortInd[j]].z) < maxRangeFeaturesCorners) {
 
                 largestPickedNum++;
                 if (largestPickedNum <= LARGESTPICK) {
                     laserCloud->points[cloudSortInd[j]].v = 2;
                     cornerPointsSharp->push_back(laserCloud->points[cloudSortInd[j]]);
-                } else if (largestPickedNum <= 20) {
+                } else if (largestPickedNum <= LARGESTPICK_SEC) {
                     laserCloud->points[cloudSortInd[j]].v = 1;
                     cornerPointsLessSharp->push_back(laserCloud->points[cloudSortInd[j]]);
                 } else {
@@ -585,12 +568,12 @@ void scanRegistration::compFeatures(pcl::PointCloud<pcl::PointXYZHSV>::Ptr corne
         for (int j = sp; j <= ep; j++) {
             if (cloudNeighborPicked[cloudSortInd[j]] == 0 &&
                     laserCloud->points[cloudSortInd[j]].s < 0.1 &&
-                    (fabs(laserCloud->points[cloudSortInd[j]].x) > 0.3 ||
-                     fabs(laserCloud->points[cloudSortInd[j]].y) > 0.3 ||
-                     fabs(laserCloud->points[cloudSortInd[j]].z) > 0.3) &&
-                    fabs(laserCloud->points[cloudSortInd[j]].x) < 30 &&
-                    fabs(laserCloud->points[cloudSortInd[j]].y) < 30 &&
-                    fabs(laserCloud->points[cloudSortInd[j]].z) < 30) {
+                    (fabs(laserCloud->points[cloudSortInd[j]].x) > minRangeFeaturesFlat ||
+                     fabs(laserCloud->points[cloudSortInd[j]].y) > minRangeFeaturesFlat ||
+                     fabs(laserCloud->points[cloudSortInd[j]].z) > minRangeFeaturesFlat) &&
+                    fabs(laserCloud->points[cloudSortInd[j]].x) < maxRangeFeaturesFlat &&
+                    fabs(laserCloud->points[cloudSortInd[j]].y) < maxRangeFeaturesFlat &&
+                    fabs(laserCloud->points[cloudSortInd[j]].z) < maxRangeFeaturesFlat) {
 
                 laserCloud->points[cloudSortInd[j]].v = -1;
                 surfPointsFlat->push_back(laserCloud->points[cloudSortInd[j]]);

@@ -68,19 +68,23 @@ public:
     pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeCornerLLast;//(new pcl::KdTreeFLANN<pcl::PointXYZHSV>());
     pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeSurfLLast;//(new pcl::KdTreeFLANN<pcl::PointXYZHSV>());
 
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr outLaserCloudLast2;
+
     float transform[6] = {0};
     float transformRec[6] = {0};
     float transformSum[6] = {0};
 
-    float imuRollStartCur = 0, imuPitchStartCur = 0, imuYawStartCur = 0;
-    float imuRollCur = 0, imuPitchCur = 0, imuYawCur = 0;
-    float imuShiftFromStartXCur = 0, imuShiftFromStartYCur = 0, imuShiftFromStartZCur = 0;
-    float imuVeloFromStartXCur = 0, imuVeloFromStartYCur = 0, imuVeloFromStartZCur = 0;
+    Eigen::Matrix4d T_transform;
 
-    float imuRollStartLast = 0, imuPitchStartLast = 0, imuYawStartLast = 0;
-    float imuRollLast = 0, imuPitchLast = 0, imuYawLast = 0;
-    float imuShiftFromStartXLast = 0, imuShiftFromStartYLast = 0, imuShiftFromStartZLast = 0;
-    float imuVeloFromStartXLast = 0, imuVeloFromStartYLast = 0, imuVeloFromStartZLast = 0;
+    float imuRollStartCur, imuPitchStartCur, imuYawStartCur;
+    float imuRollCur, imuPitchCur, imuYawCur;
+    float imuShiftFromStartXCur, imuShiftFromStartYCur, imuShiftFromStartZCur;
+    float imuVeloFromStartXCur, imuVeloFromStartYCur, imuVeloFromStartZCur;
+
+    float imuRollStartLast, imuPitchStartLast, imuYawStartLast;
+    float imuRollLast, imuPitchLast, imuYawLast;
+    float imuShiftFromStartXLast, imuShiftFromStartYLast, imuShiftFromStartZLast;
+    float imuVeloFromStartXLast, imuVeloFromStartYLast, imuVeloFromStartZLast;
 
     bool imuInited = false;
 
@@ -106,10 +110,22 @@ public:
     void laserCloudExtreCurHandler(const sensor_msgs::PointCloud2& laserCloudExtreCur2);
     void laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserCloudLast2);
     void main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::Odometry &pubOdo);
+    void laserCloudLastHandlerVelo(const pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp, const pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp, const pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat, const pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS);
+    void laserCloudExtreCurHandlerVelo(const pcl::PointCloud<pcl::PointXYZHSV>::Ptr inLaserCloudExtreCur3);
+    void setTransformationMatrix();
 private:
-    void processEdgePoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeSurfPtr, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudSurfPtr, bool isPointSel, int laserCloudSurfNum, int i, int iterCount, int iterNum);
+    int processEdgePoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeSurfPtr, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudSurfPtr, bool isPointSel, int laserCloudSurfNum, int i, int iterCount, int iterNum);
     int number_edge;
     int number_planar;
-    void processPlanarPoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeCornerPtr, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCornerPtr, bool isPointSel, int laserCloudCornerNum, int i);
+    int processPlanarPoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeCornerPtr, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCornerPtr, bool isPointSel, int laserCloudCornerNum, int i);
+
+    // for debugging
+    int err_edge_pointSearchSqDis;
+    int err_edge_dist;
+    int err_edge_pointSelInd;
+    int err_edge_minPointInd2;
+    int err_planar_pointSearchSqDis;
+    int err_planar_dist;
+    int err_planar_pointSelInd;
 };
 }

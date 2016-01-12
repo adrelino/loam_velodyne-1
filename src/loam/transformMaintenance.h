@@ -28,6 +28,12 @@ namespace transformMaintenance
 class transformMaintenance
 {
 public:
+    transformMaintenance(ros::Publisher * pubLaserOdometry2, tf::TransformBroadcaster * tfBroadcaster2);
+    void transformAssociateToMap();
+    void laserOdometryHandler(const nav_msgs::Odometry &laserOdometry,nav_msgs::Odometry & outlaserOdometry2);
+    void odomBefMappedHandler(const nav_msgs::Odometry &odomBefMapped);
+    void odomAftMappedHandler(const nav_msgs::Odometry &odomAftMapped);
+
     const double PI = 3.1415926;
     const double rad2deg = 180 / PI;
     const double deg2rad = PI / 180;

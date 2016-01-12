@@ -23,6 +23,23 @@ laserOdometry::laserOdometry(tf::TransformBroadcaster * tfBroadcaster,tf::Stampe
     kdtreeCornerLLast.reset(new pcl::KdTreeFLANN<pcl::PointXYZHSV>());
     kdtreeSurfLLast.reset(new pcl::KdTreeFLANN<pcl::PointXYZHSV>());
     systemInited = false;
+
+    outLaserCloudLast2.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
+    //    transform[6] = {0};
+    //    transformRec[6] = {0};
+    //    transformSum[6] = {0};
+
+    initTime = 0, timeLasted = 0, timeLastedRec = 0, startTimeCur = 0, startTimeLast = 0;
+
+    imuRollStartCur = 0, imuPitchStartCur = 0, imuYawStartCur = 0;
+    imuRollCur = 0, imuPitchCur = 0, imuYawCur = 0;
+    imuShiftFromStartXCur = 0, imuShiftFromStartYCur = 0, imuShiftFromStartZCur = 0;
+    imuVeloFromStartXCur = 0, imuVeloFromStartYCur = 0, imuVeloFromStartZCur = 0;
+
+    imuRollStartLast = 0, imuPitchStartLast = 0, imuYawStartLast = 0;
+    imuRollLast = 0, imuPitchLast = 0, imuYawLast = 0;
+    imuShiftFromStartXLast = 0, imuShiftFromStartYLast = 0, imuShiftFromStartZLast = 0;
+    imuVeloFromStartXLast = 0, imuVeloFromStartYLast = 0, imuVeloFromStartZLast = 0;
 }
 
 void laserOdometry::TransformReset()
@@ -40,6 +57,7 @@ void laserOdometry::TransformReset()
 void laserOdometry::TransformToStart(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po, double startTime, double endTime)
 {
     float s = (pi->h - startTime) / (endTime - startTime);
+    s = 1;
 
     float rx = s * transform[0];
     float ry = s * transform[1];
@@ -67,6 +85,7 @@ void laserOdometry::TransformToStart(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po,
 void laserOdometry::TransformToEnd(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po, double startTime, double endTime)
 {
     float s = (pi->h - startTime) / (endTime - startTime);
+    s = 1;
 
     float rx = s * transform[0];
     float ry = s * transform[1];
@@ -262,120 +281,179 @@ void laserOdometry::laserCloudExtreCurHandler(const sensor_msgs::PointCloud2& la
         imuInited = true;
     }
 
-    if (timeLasted > 4.0)
-        newLaserCloudExtreCur = true;
-    else
-        std::cout << "Extre timeLasted > 4.0" << std::endl;
+    //    if (timeLasted > 4.0)
+    newLaserCloudExtreCur = true;
+    //    else
+    //        std::cout << "Extre timeLasted > 4.0" << std::endl;
+}
+
+void laserOdometry::laserCloudExtreCurHandlerVelo(const pcl::PointCloud<pcl::PointXYZHSV>::Ptr inLaserCloudExtreCur3)
+{
+    systemInited = true;
+
+
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudExtreCur3(new pcl::PointCloud<pcl::PointXYZHSV>());
+
+    *laserCloudExtreCur3 = *inLaserCloudExtreCur3;
+    int laserCloudExtreCur3Size = laserCloudExtreCur3->points.size();
+
+    laserCloudExtreCur->clear();
+
+    *laserCloudExtreCur = * laserCloudExtreCur3;
+    laserCloudExtreCur3->clear();
+
+    if (!imuInited) {
+        transformSum[0] += imuPitchStartCur;
+        //transformSum[1] += imuYawStartCur;
+        transformSum[2] += imuRollStartCur;
+
+        imuInited = true;
+    }
+    newLaserCloudExtreCur = true;
 }
 
 void laserOdometry::laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserCloudLast2)
 {
-    if (laserCloudLast2.header.stamp.toSec() > timeLaserCloudLast + 0.005)
-    {
-        timeLaserCloudLast = laserCloudLast2.header.stamp.toSec();
-        startTimeLast = startTimeCur;
-        startTimeCur = timeLaserCloudLast - initTime;
+    // if (laserCloudLast2.header.stamp.toSec() > timeLaserCloudLast + 0.005)
+    //  {
+    timeLaserCloudLast = laserCloudLast2.header.stamp.toSec();
+    startTimeLast = startTimeCur;
+    startTimeCur = timeLaserCloudLast - initTime;
 
-        pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudPointer = laserCloudCornerLLast;
-        laserCloudCornerLLast = laserCloudCornerLast;
-        laserCloudCornerLast = laserCloudPointer;
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudPointer = laserCloudCornerLLast;
+    laserCloudCornerLLast = laserCloudCornerLast;
+    laserCloudCornerLast = laserCloudPointer; /// bulshit?
 
-        laserCloudPointer = laserCloudSurfLLast;
-        laserCloudSurfLLast = laserCloudSurfLast;
-        laserCloudSurfLast = laserCloudPointer;
+    laserCloudPointer = laserCloudSurfLLast;
+    laserCloudSurfLLast = laserCloudSurfLast;
+    laserCloudSurfLast = laserCloudPointer;
 
-        laserCloudLast->clear();
-        pcl::fromROSMsg(laserCloudLast2, *laserCloudLast);
-        int laserCloudLastSize = laserCloudLast->points.size();
+    laserCloudLast->clear();
+    pcl::fromROSMsg(laserCloudLast2, *laserCloudLast);
+    int laserCloudLastSize = laserCloudLast->points.size();
 
-        laserCloudExtreLast->clear();
-        laserCloudCornerLast->clear();
-        laserCloudSurfLast->clear();
-        for (int i = 0; i < laserCloudLastSize; i++) {
-            // is v=2 or v=-1
-            if (fabs(laserCloudLast->points[i].v - 2) < 0.005 || fabs(laserCloudLast->points[i].v + 1) < 0.005) {
-                laserCloudExtreLast->push_back(laserCloudLast->points[i]);
-            }
-            // is v=2 or v=1
-            if (fabs(laserCloudLast->points[i].v - 2) < 0.005 || fabs(laserCloudLast->points[i].v - 1) < 0.005) {
-                laserCloudCornerLast->push_back(laserCloudLast->points[i]);
-            }
-            // is v=0 or v=-1
-            if (fabs(laserCloudLast->points[i].v) < 0.005 || fabs(laserCloudLast->points[i].v + 1) < 0.005) {
-                laserCloudSurfLast->push_back(laserCloudLast->points[i]);
-            }
-            if (fabs(laserCloudLast->points[i].v - 10) < 0.005) {
-                imuPitchStartLast = laserCloudLast->points[i].x;
-                imuYawStartLast = laserCloudLast->points[i].y;
-                imuRollStartLast = laserCloudLast->points[i].z;
-            }
-            if (fabs(laserCloudLast->points[i].v - 11) < 0.005) {
-                imuPitchLast = laserCloudLast->points[i].x;
-                imuYawLast = laserCloudLast->points[i].y;
-                imuRollLast = laserCloudLast->points[i].z;
-            }
-            if (fabs(laserCloudLast->points[i].v - 12) < 0.005) {
-                imuShiftFromStartXLast = laserCloudLast->points[i].x;
-                imuShiftFromStartYLast = laserCloudLast->points[i].y;
-                imuShiftFromStartZLast = laserCloudLast->points[i].z;
-            }
-            if (fabs(laserCloudLast->points[i].v - 13) < 0.005) {
-                imuVeloFromStartXLast = laserCloudLast->points[i].x;
-                imuVeloFromStartYLast = laserCloudLast->points[i].y;
-                imuVeloFromStartZLast = laserCloudLast->points[i].z;
-            }
+    laserCloudExtreLast->clear();
+    laserCloudCornerLast->clear();
+    laserCloudSurfLast->clear();
+    for (int i = 0; i < laserCloudLastSize; i++) {
+        // is v=2 or v=-1
+        if (fabs(laserCloudLast->points[i].v - 2) < 0.005 || fabs(laserCloudLast->points[i].v + 1) < 0.005) {
+            laserCloudExtreLast->push_back(laserCloudLast->points[i]);
         }
-        std::cout << "copied laserCloudExtreLast " << laserCloudExtreLast->size() << std::endl;
-        std::cout << "copied laserCloudCornerLast " << laserCloudCornerLast->size() << std::endl;
-        std::cout << "copied laserCloudSurfLast " << laserCloudSurfLast->size() << std::endl;
-
-        pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreePointer = kdtreeCornerLLast;
-        kdtreeCornerLLast = kdtreeCornerLast;
-        kdtreeCornerLast = kdtreePointer;
-        kdtreeCornerLast->setInputCloud(laserCloudCornerLast);
-
-        kdtreePointer = kdtreeSurfLLast;
-        kdtreeSurfLLast = kdtreeSurfLast;
-        kdtreeSurfLast = kdtreePointer;
-        kdtreeSurfLast->setInputCloud(laserCloudSurfLast);
-
-        if (timeLasted > 4.0)
-            newLaserCloudLast = true;
-        else
-            std::cout << "timeLasted < 4.0" << std::endl;
+        // is v=2 or v=1
+        if (fabs(laserCloudLast->points[i].v - 2) < 0.005 || fabs(laserCloudLast->points[i].v - 1) < 0.005) {
+            laserCloudCornerLast->push_back(laserCloudLast->points[i]);
+        }
+        // is v=0 or v=-1
+        if (fabs(laserCloudLast->points[i].v) < 0.005 || fabs(laserCloudLast->points[i].v + 1) < 0.005) {
+            laserCloudSurfLast->push_back(laserCloudLast->points[i]);
+        }
+        //        if (fabs(laserCloudLast->points[i].v - 10) < 0.005) {
+        //            imuPitchStartLast = laserCloudLast->points[i].x;
+        //            imuYawStartLast = laserCloudLast->points[i].y;
+        //            imuRollStartLast = laserCloudLast->points[i].z;
+        //        }
+        //        if (fabs(laserCloudLast->points[i].v - 11) < 0.005) {
+        //            imuPitchLast = laserCloudLast->points[i].x;
+        //            imuYawLast = laserCloudLast->points[i].y;
+        //            imuRollLast = laserCloudLast->points[i].z;
+        //        }
+        //        if (fabs(laserCloudLast->points[i].v - 12) < 0.005) {
+        //            imuShiftFromStartXLast = laserCloudLast->points[i].x;
+        //            imuShiftFromStartYLast = laserCloudLast->points[i].y;
+        //            imuShiftFromStartZLast = laserCloudLast->points[i].z;
+        //        }
+        //        if (fabs(laserCloudLast->points[i].v - 13) < 0.005) {
+        //            imuVeloFromStartXLast = laserCloudLast->points[i].x;
+        //            imuVeloFromStartYLast = laserCloudLast->points[i].y;
+        //            imuVeloFromStartZLast = laserCloudLast->points[i].z;
+        //        }
     }
-    else
-    {
-        std::cout << "New Point cloud arived to early" << std::endl;
-    }
+    std::cout << "copied laserCloudExtreLast " << laserCloudExtreLast->size() << std::endl;
+    std::cout << "copied laserCloudCornerLast " << laserCloudCornerLast->size() << std::endl;
+    std::cout << "copied laserCloudSurfLast " << laserCloudSurfLast->size() << std::endl;
+
+    pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreePointer = kdtreeCornerLLast;
+    kdtreeCornerLLast = kdtreeCornerLast;
+    kdtreeCornerLast = kdtreePointer;
+    kdtreeCornerLast->setInputCloud(laserCloudCornerLast);
+
+    kdtreePointer = kdtreeSurfLLast;
+    kdtreeSurfLLast = kdtreeSurfLast;
+    kdtreeSurfLast = kdtreePointer;
+    kdtreeSurfLast->setInputCloud(laserCloudSurfLast);
+
+    //        if (timeLasted > 4.0)
+    newLaserCloudLast = true;
+    //        else
+    //            std::cout << "timeLasted < 4.0" << std::endl;
+    //    }
+    //    else
+    //    {
+    //        std::cout << "New Point cloud arived to early" << std::endl;
+    //    }
 }
 
-//int main(int argc, char** argv)
+void laserOdometry::laserCloudLastHandlerVelo(const pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp, const pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp, const pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat, const pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS)
+{
+
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudPointer = laserCloudCornerLLast;
+    laserCloudCornerLLast = laserCloudCornerLast;
+    laserCloudCornerLast = laserCloudPointer; /// bulshit?
+
+    laserCloudPointer = laserCloudSurfLLast;
+    laserCloudSurfLLast = laserCloudSurfLast;
+    laserCloudSurfLast = laserCloudPointer;
+
+
+
+
+    laserCloudExtreLast->clear();
+    laserCloudCornerLast->clear();
+    laserCloudSurfLast->clear();
+
+    // v==2 cornerPointsSharp
+    // v==1 cornerPointsLessSharp
+    // v==-1 surfPointsFlat
+    // v==0 surfPointsLessFlat surfPointsLessFlatDS
+    // is v=2 or v=-1
+    *laserCloudExtreLast = *cornerPointsSharp;
+    *laserCloudExtreLast += *surfPointsFlat;
+
+    // is v=2 or v=1
+    *laserCloudCornerLast = *cornerPointsSharp;
+    *laserCloudCornerLast += *cornerPointsLessSharp;
+
+    // is v=0 or v=-1
+    *laserCloudSurfLast = *surfPointsLessFlatDS;
+    *laserCloudSurfLast += *surfPointsFlat;
+
+
+
+
+    pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreePointer = kdtreeCornerLLast;
+    kdtreeCornerLLast = kdtreeCornerLast;
+    kdtreeCornerLast = kdtreePointer;
+    kdtreeCornerLast->setInputCloud(laserCloudCornerLast);
+
+    kdtreePointer = kdtreeSurfLLast;
+    kdtreeSurfLLast = kdtreeSurfLast;
+    kdtreeSurfLast = kdtreePointer;
+    kdtreeSurfLast->setInputCloud(laserCloudSurfLast);
+
+    newLaserCloudLast = true;
+}
+
 void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::Odometry &pubOdo)
 {
-    //ros::init(argc, argv, "laserOdometry");
-    //ros::NodeHandle nh;
-
-    //    ros::Subscriber subLaserCloudExtreCur = nh.subscribe<sensor_msgs::PointCloud2>
-    //            ("/laser_cloud_extre_cur", 2, laserCloudExtreCurHandler);
-
-    //    ros::Subscriber subLaserCloudLast = nh.subscribe<sensor_msgs::PointCloud2>
-    //            ("/laser_cloud_last", 2, laserCloudLastHandler);
 
     //ros::Publisher pubLaserCloudLast2 = nh.advertise<sensor_msgs::PointCloud2> ("/laser_cloud_last_2", 2);
-
     //ros::Publisher pub1 = nh.advertise<sensor_msgs::PointCloud2> ("/pc1", 1);
-
     //ros::Publisher pub2 = nh.advertise<sensor_msgs::PointCloud2> ("/pc2", 1);
-
     //ros::Publisher pub3 = nh.advertise<sensor_msgs::PointCloud2> ("/pc3", 1);
-
     //ros::Publisher pub4 = nh.advertise<sensor_msgs::PointCloud2> ("/pc4", 1);
-
     //ros::Publisher pub5 = nh.advertise<sensor_msgs::PointCloud2> ("/pc5", 1);
-
     //ros::Publisher pub6 = nh.advertise<sensor_msgs::PointCloud2> ("/pc6", 1);
-
     //ros::Publisher pubLaserOdometry = nh.advertise<nav_msgs::Odometry> ("/cam_to_init", 5);
     nav_msgs::Odometry laserOdometry;
     laserOdometry.header.frame_id = "/camera_init";
@@ -386,11 +464,6 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
     laserOdometryTrans->frame_id_ = "/camera_init";
     laserOdometryTrans->child_frame_id_ = "/camera";
 
-
-
-
-    std::cout << "newLaserCloudExtreCur=" << newLaserCloudExtreCur << ", newLaserCloudLast=" << newLaserCloudLast << std::endl;
-
     bool sweepEnd = false;
     bool newLaserPoints = false;
     bool sufficientPoints = false;
@@ -399,15 +472,21 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
     pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeCornerPtr, kdtreeSurfPtr;
     if (newLaserCloudExtreCur && newLaserCloudLast)
     {
-
+        std::cout << "newLaserCloudExtreCur && newLaserCloudLast" << std::endl;
         startTime = startTimeLast;
         endTime = startTimeCur;
 
-        extrePointsPtr = laserCloudExtreLast;
-        laserCloudCornerPtr = laserCloudCornerLLast;
-        laserCloudSurfPtr = laserCloudSurfLLast;
-        kdtreeCornerPtr = kdtreeCornerLLast;
-        kdtreeSurfPtr = kdtreeSurfLLast;
+        //        extrePointsPtr = laserCloudExtreLast;
+        //        laserCloudCornerPtr = laserCloudCornerLLast;
+        //        laserCloudSurfPtr = laserCloudSurfLLast;
+        //        kdtreeCornerPtr = kdtreeCornerLLast;
+        //        kdtreeSurfPtr = kdtreeSurfLLast;
+
+        extrePointsPtr = laserCloudExtreCur;
+        laserCloudCornerPtr = laserCloudCornerLast;
+        laserCloudSurfPtr = laserCloudSurfLast;
+        kdtreeCornerPtr = kdtreeCornerLast;
+        kdtreeSurfPtr = kdtreeSurfLast;
 
         laserOdometry.header.stamp = ros::Time().fromSec(timeLaserCloudLast);
         laserOdometryTrans->stamp_ = ros::Time().fromSec(timeLaserCloudLast);
@@ -415,13 +494,17 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
         sweepEnd = true;
         newLaserPoints = true;
 
-        if (laserCloudSurfLLast->points.size() >= 100) {
+        if (laserCloudSurfPtr->points.size() >= 100) {
             sufficientPoints = true;
+        }
+        else
+        {
+            std::cout << "Not enough surf points (" << laserCloudSurfLLast->points.size() << ")" << std::endl;
         }
 
     } else if (newLaserCloudExtreCur)
     {
-
+        std::cout << "newLaserCloudExtreCur" << std::endl;
         startTime = startTimeCur;
         endTime = timeLasted;
 
@@ -465,17 +548,16 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
         if (!sweepEnd) {
             st = (timeLasted - startTime) / (startTimeCur - startTimeLast);
         }
-        int iterNum = st * 50;
+        st = 50;
+        int iterNum = 50;
 
         int pointSelSkipNum = 2;
 
         /// a number of iterations
         std::cout << "Will process " << iterNum << " iterations" << std::endl;
-        number_planar=0;
-        number_edge=0;
+
         for (int iterCount = 0; iterCount < iterNum; iterCount++)
         {
-            std::cout << "iterCount=" << iterCount << std::endl;
             laserCloudExtreOri->clear();
             //laserCloudExtreSel->clear();
             //laserCloudExtreUnsel->clear();
@@ -489,11 +571,45 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                 pointSelInd.clear();
             }
 
-
+            err_edge_pointSearchSqDis=0;
+            err_edge_dist=0;
+            err_edge_pointSelInd=0;
+            err_edge_minPointInd2 =0;
+            err_planar_pointSearchSqDis=0;
+            err_planar_dist=0;
+            err_planar_pointSelInd=0;
+            number_planar=0;
+            number_edge=0;
             for (int i = 0; i < extrePointNum; i++)
             {
                 extreOri = extrePointsPtr->points[i];
+                //                if (i==0)
+                //                {
+                //                    std::cout << "extreOri" << extreOri << std::endl;
+                //                    std::cout << "extreSel" << extreSel << std::endl;
+                //                    std::cout << "rx" << transform[0]
+                //                              << ", ry" << transform[1]
+                //                              << ", rz" << transform[2]
+                //                              << ", tx" << transform[3]
+                //                              << ", ty" << transform[4]
+                //                              << ", tz" << transform[5]
+                //                              << std::endl;
+                //                }
                 TransformToStart(&extreOri, &extreSel, startTime, endTime);
+                //                if (i==0)
+                //                {
+                //                    std::cout << "-------------" << std::endl;
+                //                    std::cout << "extreOri" << extreOri << std::endl;
+                //                    std::cout << "extreSel" << extreSel << std::endl;
+                //                    std::cout << "rx" << transform[0]
+                //                              << ", ry" << transform[1]
+                //                              << ", rz" << transform[2]
+                //                              << ", tx" << transform[3]
+                //                              << ", ty" << transform[4]
+                //                              << ", tz" << transform[5]
+                //                              << std::endl;
+                //                    std::cout << "isPointSel" << isPointSel << std::endl;
+                //                }
 
                 if (isPointSel) {
                     pointSelInd.push_back(-1);
@@ -504,20 +620,48 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                 /// edge point
                 if (fabs(extreOri.v + 1) < 0.05)
                 {
-                    processEdgePoint(kdtreeSurfPtr, laserCloudSurfPtr, isPointSel, laserCloudSurfNum, i, iterCount, iterNum);
+                    int ret = processEdgePoint(kdtreeSurfPtr, laserCloudSurfPtr, isPointSel, laserCloudSurfNum, i, iterCount, iterNum);
+                    if (ret==-1)
+                        //std::cout << "pointSearchSqDis[0]=" << pointSearchSqDis[0] << " > 1.0" << std::endl;
+                        err_edge_pointSearchSqDis++;
+                    if (ret==-2)
+                        //std::cout << "dist > 1.0" << std::endl;
+                        err_edge_dist++;
+                    if (ret==-3)
+                        //std::cout << "pointSelInd[3 * i]=" << pointSelInd[3 * i] << " >= 0" << std::endl;
+                        err_edge_pointSelInd++;
+                    if (ret==-4)
+                        err_edge_minPointInd2++;
                 }
                 /// planar point
                 else if (fabs(extreOri.v - 2) < 0.05)
                 {
-                    processPlanarPoint(kdtreeCornerPtr, laserCloudCornerPtr, isPointSel, laserCloudCornerNum, i);
+                    int ret = processPlanarPoint(kdtreeCornerPtr, laserCloudCornerPtr, isPointSel, laserCloudCornerNum, i);
+                    if (ret==-1)
+                        err_planar_pointSearchSqDis++;
+                    if (ret==-2)
+                        err_planar_dist++;
+                    if (ret==-3)
+                        err_planar_pointSelInd++;
                 }
             }
+
+            //            std::cout << "err_edge_pointSearchSqDis=" << err_edge_pointSearchSqDis
+            //                      << ", err_edge_dist=" << err_edge_dist
+            //                      << ", err_edge_pointSelInd=" << err_edge_pointSelInd
+            //                      << ", err_edge_pointSelInd=" << err_edge_pointSelInd
+            //                      << ", err_planar_pointSearchSqDis=" << err_planar_pointSearchSqDis
+            //                      << ", err_planar_dist=" << err_planar_dist
+            //                      << ", err_planar_pointSelInd=" << err_planar_pointSelInd
+            //                      << ", number_planar" << number_planar
+            //                      << ", number_edge=" << number_edge
+            //                      << std::endl;
+
+
+
             int extrePointSelNum = laserCloudExtreOri->points.size();
-            std::cout << "extrePointSelNum=" << extrePointSelNum << std::endl;
-            std::cout << "number_planar=" << number_planar << std::endl;
-            std::cout << "number_edge=" << number_edge << std::endl;
             if (extrePointSelNum < 10) {
-                ROS_INFO ("extrePointSelNum < 10");
+                ROS_WARN ("extrePointSelNum < 10: extrePointSelNum=%d, number_planar=%d, number_edge=%d", extrePointSelNum,number_planar,number_edge);
                 continue;
             }
 
@@ -532,6 +676,7 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                 coeff = coeffSel->points[i];
 
                 float s = (extreOri.h - startTime) / (endTime - startTime);
+                s=1;
 
                 float srx = sin(s * transform[0]);
                 float crx = cos(s * transform[0]);
@@ -549,6 +694,8 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                            + s*ty*crz*srx - s*tz*crx - s*tx*srx*srz) * coeff.y
                         + (s*crx*cry*srz*extreOri.x - s*crx*cry*crz*extreOri.y - s*cry*srx*extreOri.z
                            + s*tz*cry*srx + s*ty*crx*cry*crz - s*tx*crx*cry*srz) * coeff.z;
+                if (isnan(arx) || isnan(-arx))
+                    ROS_ERROR ("arx=%f, s=%f, crx=%f, sry=%f, srz=%f, extreOri.x=%f, extreOri.y=%f, extreOri.z=%f, coeff.x=%f, coeff.y=%f, coeff.z=%f", arx, s, crx, sry, srz, extreOri.x, extreOri.y, extreOri.z, coeff.x, coeff.y, coeff.z);
 
                 float ary = ((-s*crz*sry - s*cry*srx*srz)*extreOri.x
                              + (s*cry*crz*srx - s*sry*srz)*extreOri.y - s*crx*cry*extreOri.z
@@ -583,19 +730,36 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                 matA.at<float>(i, 4) = aty;
                 matA.at<float>(i, 5) = atz;
                 matB.at<float>(i, 0) = -0.015 * st * d2;
+                //                std::cout << "arx=" << arx
+                //                          << ", ary=" << ary
+                //                          << ", arz=" << arz
+                //                          << ", atx=" << atx
+                //                          << ", aty=" << aty
+                //                          << ", atz=" << atz << std::endl;
+                if(isnan(matB.at<float>(i, 0)) || isnan(-matB.at<float>(i, 0)))
+                    ROS_ERROR ("matB.at<float>(i, 0)=%f",  matB.at<float>(i, 0));
             }
             cv::transpose(matA, matAt);
             matAtA = matAt * matA; //+ 0.1 * cv::Mat::eye(6, 6, CV_32F);
             matAtB = matAt * matB;
-            cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR);
+
+            if(!cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR))
+            {
+                ROS_ERROR ("solve error");
+                for (int x=0;x<6;x++)
+                    for (int y=0;y<6;y++)
+                        std::cout << "matAtA.at<float>(x,y)=" << matAtA.at<float>(x,y) << std::endl;
+                for (int x=0;x<6;x++)
+                    std::cout << "matAtB.at<float>(x,1)=" << matAtB.at<float>(x,1) << std::endl;
+            }
             //cv::solve(matA, matB, matX, cv::DECOMP_SVD);
 
-            if (fabs(matX.at<float>(0, 0)) < 0.005 &&
-                    fabs(matX.at<float>(1, 0)) < 0.005 &&
-                    fabs(matX.at<float>(2, 0)) < 0.005 &&
-                    fabs(matX.at<float>(3, 0)) < 0.01 &&
-                    fabs(matX.at<float>(4, 0)) < 0.01 &&
-                    fabs(matX.at<float>(5, 0)) < 0.01) {
+            if (fabs(matX.at<float>(0, 0)) < 0.1 &&
+                    fabs(matX.at<float>(1, 0)) < 0.1 &&
+                    fabs(matX.at<float>(2, 0)) < 0.1 &&
+                    fabs(matX.at<float>(3, 0)) < 0.9 &&
+                    fabs(matX.at<float>(4, 0)) < 0.9 &&
+                    fabs(matX.at<float>(5, 0)) < 0.9) {
 
                 //transform[0] += 0.7 * matX.at<float>(0, 0);
                 //transform[1] += 0.7 * matX.at<float>(1, 0);
@@ -607,7 +771,23 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                 transform[4] += matX.at<float>(4, 0);
                 transform[5] += matX.at<float>(5, 0);
             } else {
-                ROS_INFO ("Odometry update out of bound");
+                ROS_ERROR ("Odometry update out of bound: tx=%f, ty=%f, tz=%f",matX.at<float>(3, 0),matX.at<float>(4, 0),matX.at<float>(5, 0));
+                //                for (int x=0;x<6;x++)
+                //                    for (int y=0;y<6;y++)
+                //                        std::cout << "matAtA.at<float>(x,y)=" << matAtA.at<float>(x,y) << std::endl;
+                //                for (int x=0;x<6;x++)
+                //                    std::cout << "matAtB.at<float>(x,1)=" << matAtB.at<float>(x,1) << std::endl;
+                //                for (int x=0;x<extrePointNum;x++)
+                //                    for (int y=0;y<6;y++)
+                //                    {
+                //                        if (isnan(matA.at<float>(x,y)) || isnan(-matA.at<float>(x,y)))
+                //                            std::cout << "matA.at<float>(" << x << "," << y << ")=" << matA.at<float>(x,y) << std::endl;
+                //                    }
+                //                for (int x=0;x<extrePointNum;x++)
+                //                {
+                //                    if (isnan(matB.at<float>(x,0)) || isnan(-matB.at<float>(x,0)))
+                //                        std::cout << "matB.at<float>(" << x << ",0)=" << matB.at<float>(x,0) << std::endl;
+                //                }
             }
 
             float deltaR = sqrt(matX.at<float>(0, 0) * 180 / PI * matX.at<float>(0, 0) * 180 / PI
@@ -618,11 +798,11 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                                 + matX.at<float>(5, 0) * 100 * matX.at<float>(5, 0) * 100);
 
             if (deltaR < 0.1 && deltaT < 0.1) {
-                ROS_INFO ("deltaR=%d < 0.1 && deltaT=%d < 0.1", deltaR, deltaT);
-                break;
+                ROS_WARN ("deltaR=%f < 0.1 && deltaT=%f < 0.1", deltaR, deltaT);
+                //break;
             }
 
-            ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
+            //ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
         }
 
         /*sensor_msgs::PointCloud2 pc12;
@@ -666,9 +846,9 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
     if (newLaserPoints)
     {
         //std::cout << "newLaserPoints" << std::endl;
-        float rx, ry, rz, tx, ty, tz;
+        float rx=0, ry=0, rz=0, tx=0, ty=0, tz=0;
 
-        AccumulateRotation(transformSum[0], transformSum[1], transformSum[2], -transform[0], -transform[1] * 1.05, -transform[2], rx, ry, rz);
+        //AccumulateRotation(transformSum[0], transformSum[1], transformSum[2], -transform[0], -transform[1] * 1.05, -transform[2], rx, ry, rz);
 
         float x1, y1, z1;
         if (sweepEnd)
@@ -698,17 +878,23 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
             PluginIMURotation(rx, ry, rz, imuPitchStartLast, imuYawStartLast, imuRollStartLast,
                               imuPitchLast, imuYawLast, imuRollLast, rx, ry, rz);
 
-            int laserCloudCornerLastNum = laserCloudCornerLast->points.size();
-            for (int i = 0; i < laserCloudCornerLastNum; i++) {
-                TransformToEnd(&laserCloudCornerLast->points[i], &laserCloudCornerLast->points[i],
-                               startTimeLast, startTimeCur);
-            }
+            //            int laserCloudCornerLastNum = laserCloudCornerLast->points.size();
+            //            for (int i = 0; i < laserCloudCornerLastNum; i++) {
+            //                TransformToEnd(&laserCloudCornerLast->points[i], &laserCloudCornerLast->points[i],
+            //                               startTimeLast, startTimeCur);
+            //                //std::cout << "laserCloudCornerLast->points[i]=" << laserCloudCornerLast->points[i] << std::endl;
+            //            }
 
-            int laserCloudSurfLastNum = laserCloudSurfLast->points.size();
-            for (int i = 0; i < laserCloudSurfLastNum; i++) {
-                TransformToEnd(&laserCloudSurfLast->points[i], &laserCloudSurfLast->points[i],
-                               startTimeLast, startTimeCur);
-            }
+            //            int laserCloudSurfLastNum = laserCloudSurfLast->points.size();
+            //            for (int i = 0; i < laserCloudSurfLastNum; i++) {
+            //                //std::cout << "laserCloudSurfLast->points[i]=" << laserCloudSurfLast->points[i] << std::endl;
+            //                TransformToEnd(&laserCloudSurfLast->points[i], &laserCloudSurfLast->points[i],
+            //                               startTimeLast, startTimeCur);
+            //                //std::cout << "laserCloudSurfLast->points[i]=" << laserCloudSurfLast->points[i] << std::endl;
+            //            }
+
+
+            setTransformationMatrix();
 
             TransformReset();
 
@@ -719,12 +905,14 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
             transformSum[4] = ty;
             transformSum[5] = tz;
 
+            *outLaserCloudLast2 = *laserCloudCornerLast;
+            *outLaserCloudLast2 += *laserCloudSurfLast;
             sensor_msgs::PointCloud2 laserCloudLast2;
-            pcl::toROSMsg(*laserCloudCornerLast + *laserCloudSurfLast, laserCloudLast2);
+            pcl::toROSMsg(*outLaserCloudLast2, laserCloudLast2);
             laserCloudLast2.header.stamp = ros::Time().fromSec(timeLaserCloudLast);
             laserCloudLast2.header.frame_id = "/camera";
             pub = laserCloudLast2;
-            pubLaserCloudLast2->publish(laserCloudLast2);
+            //pubLaserCloudLast2->publish(laserCloudLast2);
 
         } else {
 
@@ -743,64 +931,86 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
         laserOdometry.pose.pose.position.z = tz;
 
         pubOdo = laserOdometry;
-        pubLaserOdometry->publish(laserOdometry);
+        //pubLaserOdometry->publish(laserOdometry);
+        ROS_WARN ("PUBLISHED ODOMETRY tx=%f, ty=%f, tz=%f",tx,ty,tz);
+
 
         laserOdometryTrans->setRotation(tf::Quaternion(-geoQuat.y, -geoQuat.z, geoQuat.x, geoQuat.w));
         laserOdometryTrans->setOrigin(tf::Vector3(tx, ty, tz));
-        tfBroadcaster->sendTransform(*laserOdometryTrans);
+        //tfBroadcaster->sendTransform(*laserOdometryTrans);
 
     }
 }
 
-void laserOdometry::processEdgePoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeSurfPtr,  pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudSurfPtr, bool isPointSel, int laserCloudSurfNum, int i, int iterCount, int iterNum)
+void laserOdometry::setTransformationMatrix()
+{
+    Eigen::Quaterniond q;
+    geometry_msgs::Quaternion geoQuat = tf::createQuaternionMsgFromRollPitchYaw(transform[0], transform[1], transform[2]);
+    q.x() = geoQuat.x;
+    q.y() = geoQuat.y;
+    q.z() = geoQuat.z;
+    q.w() = geoQuat.w;
+    Eigen::Matrix3d R = q.matrix();
+    T_transform << R(0,0), R(0,1), R(0,2), transform[3],
+            R(1,0), R(1,1), R(1,2), transform[4],
+            R(2,0), R(2,1), R(2,2), transform[5],
+            0, 0, 0, 1;
+}
+
+int laserOdometry::processEdgePoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeSurfPtr,  pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudSurfPtr, bool isPointSel, int laserCloudSurfNum, int i, int iterCount, int iterNum)
 {
     int closestPointInd = -1, minPointInd2 = -1, minPointInd3 = -1;
-    if (isPointSel) {
+    if (isPointSel)
+    {
         kdtreeSurfPtr->nearestKSearch(extreSel, 1, pointSearchInd, pointSearchSqDis);
-        if (pointSearchSqDis[0] > 1.0) {
-            return;
+        if (pointSearchSqDis[0] > 10.0f) {
+            return -1;
         }
 
         closestPointInd = pointSearchInd[0];
-        float closestPointTime = laserCloudSurfPtr->points[closestPointInd].h;
+        //        float closestPointTime = laserCloudSurfPtr->points[closestPointInd].h;
         float pointSqDis, minPointSqDis2 = 1, minPointSqDis3 = 1;
         for (int j = closestPointInd + 1; j < laserCloudSurfNum; j++) {
-            if (laserCloudSurfPtr->points[j].h > closestPointTime + 0.07) {
-                break;
-            }
+            //            if (laserCloudSurfPtr->points[j].h > closestPointTime + 0.07) {
+            //                break;
+            //            }
 
             pointSqDis = SQRDIST(laserCloudSurfPtr->points[j].x,laserCloudSurfPtr->points[j].y,laserCloudSurfPtr->points[j].z,extreSel.x,extreSel.y,extreSel.z);
 
-            if (laserCloudSurfPtr->points[j].h < closestPointTime + 0.005) {
-                if (pointSqDis < minPointSqDis2) {
-                    minPointSqDis2 = pointSqDis;
-                    minPointInd2 = j;
-                }
-            } else {
-                if (pointSqDis < minPointSqDis3) {
-                    minPointSqDis3 = pointSqDis;
-                    minPointInd3 = j;
-                }
+            //            if (laserCloudSurfPtr->points[j].h < closestPointTime + 0.005) {
+            if (pointSqDis < minPointSqDis2) {
+                minPointSqDis2 = pointSqDis;
+                minPointInd2 = j;
             }
+            //            }
+            //            else
+            //            {
+            //                if (pointSqDis < minPointSqDis3) {
+            //                    minPointSqDis3 = pointSqDis;
+            //                    minPointInd3 = j;
+            //                }
+            //            }
         }
         for (int j = closestPointInd - 1; j >= 0; j--) {
-            if (laserCloudSurfPtr->points[j].h < closestPointTime - 0.07) {
-                break;
-            }
+            //            if (laserCloudSurfPtr->points[j].h < closestPointTime - 0.07) {
+            //                break;
+            //            }
 
             pointSqDis = SQRDIST(laserCloudSurfPtr->points[j].x,laserCloudSurfPtr->points[j].y,laserCloudSurfPtr->points[j].z,extreSel.x,extreSel.y,extreSel.z);
 
-            if (laserCloudSurfPtr->points[j].h > closestPointTime - 0.005) {
-                if (pointSqDis < minPointSqDis2) {
-                    minPointSqDis2 = pointSqDis;
-                    minPointInd2 = j;
-                }
-            } else {
-                if (pointSqDis < minPointSqDis3) {
-                    minPointSqDis3 = pointSqDis;
-                    minPointInd3 = j;
-                }
+            //            if (laserCloudSurfPtr->points[j].h > closestPointTime - 0.005) {
+            //            if (pointSqDis < minPointSqDis2) {
+            //                minPointSqDis2 = pointSqDis;
+            //                minPointInd2 = j;
+            //            }
+            //            }
+            //            else
+            //            {
+            if (pointSqDis < minPointSqDis3) {
+                minPointSqDis3 = pointSqDis;
+                minPointInd3 = j;
             }
+            //            }
         }
     } else {
         if (pointSelInd[3 * i] >= 0) {
@@ -809,15 +1019,16 @@ void laserOdometry::processEdgePoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdt
             minPointInd3 = pointSelInd[3 * i + 2];
 
             float dist = SQRDIST(extreSel.x,extreSel.y,extreSel.z,laserCloudSurfPtr->points[closestPointInd].x,laserCloudSurfPtr->points[closestPointInd].y,laserCloudSurfPtr->points[closestPointInd].z);
-            if (dist > 1.0) {
-                return;
+            if (dist > 10.0f) {
+                return -2;
             }
         } else {
-            return;
+            return -3;
         }
     }
 
-    if (minPointInd2 >= 0 && minPointInd3 >= 0) {
+    if (minPointInd2 >= 0 && minPointInd3 >= 0)
+    {
         tripod1 = laserCloudSurfPtr->points[closestPointInd];
         tripod2 = laserCloudSurfPtr->points[minPointInd2];
         tripod3 = laserCloudSurfPtr->points[minPointInd3];
@@ -858,6 +1069,13 @@ void laserOdometry::processEdgePoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdt
             //laserCloudSel->push_back(tripod1);
             //laserCloudSel->push_back(tripod2);
             //laserCloudSel->push_back(tripod3);
+            if (isnan(coeff.x) || isnan(coeff.y) || isnan(coeff.z) || isnan(coeff.h))
+            {
+                std::cout << "s=" << s
+                          << ", pa=" << pa
+                          << ", pb=" << pb
+                          << ", pd2=" << pd2 << std::endl;
+            }
             coeffSel->push_back(coeff);
 
             if (isPointSel) {
@@ -866,51 +1084,56 @@ void laserOdometry::processEdgePoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdt
                 pointSelInd[3 * i + 2] = minPointInd3;
             }
         } else {
+            //std::cout << "s=" << s << std::endl;
             //laserCloudExtreUnsel->push_back(extreSel);
         }
     }
+    else
+    {
+        return -4;
+    }
 }
 
-void laserOdometry::processPlanarPoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeCornerPtr, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCornerPtr, bool isPointSel, int laserCloudCornerNum, int i)
+int laserOdometry::processPlanarPoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeCornerPtr, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCornerPtr, bool isPointSel, int laserCloudCornerNum, int i)
 {
     int closestPointInd = -1, minPointInd2 = -1;
     if (isPointSel) {
         kdtreeCornerPtr->nearestKSearch(extreSel, 1, pointSearchInd, pointSearchSqDis);
-        if (pointSearchSqDis[0] > 1.0) {
-            return;
+        if (pointSearchSqDis[0] > 10.0) {
+            return -1;
         }
 
         closestPointInd = pointSearchInd[0];
-        float closestPointTime = laserCloudCornerPtr->points[closestPointInd].h;
+        //float closestPointTime = laserCloudCornerPtr->points[closestPointInd].h;
         float pointSqDis, minPointSqDis2 = 1;
         for (int j = closestPointInd + 1; j < laserCloudCornerNum; j++) {
-            if (laserCloudCornerPtr->points[j].h > closestPointTime + 0.07) {
-                break;
-            }
+            //            if (laserCloudCornerPtr->points[j].h > closestPointTime + 0.07) {
+            //                break;
+            //            }
 
             pointSqDis = SQRDIST(laserCloudCornerPtr->points[j].x,laserCloudCornerPtr->points[j].y,laserCloudCornerPtr->points[j].z, extreSel.x, extreSel.y, extreSel.z);
 
-            if (laserCloudCornerPtr->points[j].h > closestPointTime + 0.005){
-                if (pointSqDis < minPointSqDis2) {
-                    minPointSqDis2 = pointSqDis;
-                    minPointInd2 = j;
-                }
+            //  if (laserCloudCornerPtr->points[j].h > closestPointTime + 0.005){
+            if (pointSqDis < minPointSqDis2) {
+                minPointSqDis2 = pointSqDis;
+                minPointInd2 = j;
             }
+            //}
         }
 
         for (int j = closestPointInd - 1; j >= 0; j--) {
-            if (laserCloudCornerPtr->points[j].h < closestPointTime - 0.07) {
-                break;
-            }
+            //            if (laserCloudCornerPtr->points[j].h < closestPointTime - 0.07) {
+            //                break;
+            //            }
 
             pointSqDis = SQRDIST(laserCloudCornerPtr->points[j].x,laserCloudCornerPtr->points[j].y,laserCloudCornerPtr->points[j].z,extreSel.x,extreSel.y,extreSel.z);
 
-            if (laserCloudCornerPtr->points[j].h < closestPointTime - 0.005) {
-                if (pointSqDis < minPointSqDis2) {
-                    minPointSqDis2 = pointSqDis;
-                    minPointInd2 = j;
-                }
+            //   if (laserCloudCornerPtr->points[j].h < closestPointTime - 0.005) {
+            if (pointSqDis < minPointSqDis2) {
+                minPointSqDis2 = pointSqDis;
+                minPointInd2 = j;
             }
+            //  }
         }
     } else {
         if (pointSelInd[3 * i] >= 0) {
@@ -918,11 +1141,11 @@ void laserOdometry::processPlanarPoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr k
             minPointInd2 = pointSelInd[3 * i + 1];
 
             float dist = SQRDIST(extreSel.x,extreSel.y,extreSel.z,laserCloudCornerPtr->points[closestPointInd].x,laserCloudCornerPtr->points[closestPointInd].y,laserCloudCornerPtr->points[closestPointInd].z);
-            if (dist > 1.0) {
-                return;
+            if (dist > 10.0f) {
+                return -2;
             }
         } else {
-            return;
+            return -3;
         }
     }
 
@@ -947,42 +1170,59 @@ void laserOdometry::processPlanarPoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr k
                           * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
                           + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))
                           * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
-
-        float l12 = sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2) + (z1 - z2)*(z1 - z2));
-        float la = ((y1 - y2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) + (z1 - z2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
-        float lb = -((x1 - x2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))  - (z1 - z2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
-        float lc = -((x1 - x2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))  + (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
-        float ld2 = a012 / l12;
-
-        extreProj = extreSel;
-        extreProj.x -= la * ld2;
-        extreProj.y -= lb * ld2;
-        extreProj.z -= lc * ld2;
-
-        float s = 2 * (1 - 8 * fabs(ld2));
-
-        coeff.x = s * la;
-        coeff.y = s * lb;
-        coeff.z = s * lc;
-        coeff.h = s * ld2;
-
-        if (s > 0.4)
+        if (a012>0.001f)
         {
-            laserCloudExtreOri->push_back(extreOri);
-            number_planar++;
-            //laserCloudExtreSel->push_back(extreSel);
-            //laserCloudExtreProj->push_back(extreProj);
-            //laserCloudSel->push_back(tripod1);
-            //laserCloudSel->push_back(tripod2);
-            coeffSel->push_back(coeff);
+            if (isnan(a012) || isnan(-a012))
+                std::cerr << "a012=" << a012 << std::endl;
 
-            if (isPointSel) {
-                pointSelInd[3 * i] = closestPointInd;
-                pointSelInd[3 * i + 1] = minPointInd2;
+            float l12 = sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2) + (z1 - z2)*(z1 - z2));
+            if (isnan(l12) || isnan(-l12))
+                std::cerr << "l12=" << l12 << std::endl;
+            float la = ((y1 - y2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1)) + (z1 - z2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
+            if (isnan(la) || isnan(-la))
+                std::cerr << "la=" << la << ", a012=" << a012 << ", l12=" << l12 << std::endl;
+            float lb = -((x1 - x2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))  - (z1 - z2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
+            float lc = -((x1 - x2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))  + (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
+            float ld2 = a012 / l12;
+
+            extreProj = extreSel;
+            extreProj.x -= la * ld2;
+            extreProj.y -= lb * ld2;
+            extreProj.z -= lc * ld2;
+
+            float s = 2 * (1 - 8 * fabs(ld2));
+
+            coeff.x = s * la;
+            coeff.y = s * lb;
+            coeff.z = s * lc;
+            coeff.h = s * ld2;
+
+            if (s > 0.4)
+            {
+                laserCloudExtreOri->push_back(extreOri);
+                number_planar++;
+                //laserCloudExtreSel->push_back(extreSel);
+                //laserCloudExtreProj->push_back(extreProj);
+                //laserCloudSel->push_back(tripod1);
+                //laserCloudSel->push_back(tripod2);
+                if (isnan(coeff.x) || isnan(coeff.y) || isnan(coeff.z) || isnan(coeff.h))
+                {
+                    std::cout << "s=" << s
+                              << ", la=" << la
+                              << ", lb=" << lb
+                              << ", lc=" << lc
+                              << ", ld2="<< ld2 << std::endl;
+                }
+                coeffSel->push_back(coeff);
+
+                if (isPointSel) {
+                    pointSelInd[3 * i] = closestPointInd;
+                    pointSelInd[3 * i + 1] = minPointInd2;
+                }
+            } else {
+                //laserCloudExtreUnsel->push_back(extreSel);
+                //std::cout << "s=" << s << std::endl;
             }
-        } else {
-            //laserCloudExtreUnsel->push_back(extreSel);
-            //std::cout << "s=" << s << std::endl;
         }
     }
     else

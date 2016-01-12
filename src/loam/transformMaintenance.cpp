@@ -2,33 +2,17 @@
 
 namespace transformMaintenance
 {
+
 transformMaintenance::transformMaintenance(ros::Publisher * pubLaserOdometry2, tf::TransformBroadcaster * tfBroadcaster2)
 {
-    //ros::init("transformMaintenance");
-    //ros::NodeHandle nh;
-
-    //    ros::Subscriber subLaserOdometry = nh.subscribe<nav_msgs::Odometry>
-    //            ("/cam_to_init", 5, laserOdometryHandler);
-
-    //    ros::Subscriber subOdomBefMapped = nh.subscribe<nav_msgs::Odometry>
-    //            ("/bef_mapped_to_init_2", 5, odomBefMappedHandler);
-
-    //    ros::Subscriber subOdomAftMapped = nh.subscribe<nav_msgs::Odometry>
-    //            ("/aft_mapped_to_init_2", 5, odomAftMappedHandler);
-
-    //            ros::Publisher pubLaserOdometry2 = nh.advertise<nav_msgs::Odometry> ("/cam_to_init_2", 5);
     pubLaserOdometry2Pointer = pubLaserOdometry2;
     laserOdometry2.header.frame_id = "/camera_init_2";
     laserOdometry2.child_frame_id = "/camera";
 
-    //        tf::TransformBroadcaster tfBroadcaster2;
     tfBroadcaster2Pointer = tfBroadcaster2;
     laserOdometryTrans2.frame_id_ = "/camera_init_2";
     laserOdometryTrans2.child_frame_id_ = "/camera";
 
-    //    ros::spin();
-
-    //return 0;
 }
 
 void transformMaintenance::transformAssociateToMap()
@@ -120,9 +104,7 @@ void transformMaintenance::transformAssociateToMap()
 
 void transformMaintenance::laserOdometryHandler(const nav_msgs::Odometry &laserOdometry,nav_msgs::Odometry & outlaserOdometry2)
 {
-    std::cout << "laserOdometryHandler():" <<  " fabs(timeOdomBefMapped - timeOdomAftMapped) < 0.005 = " << (fabs(timeOdomBefMapped - timeOdomAftMapped) < 0.005) << std::endl;
-    std::cout << "timeOdomBefMapped=" << timeOdomBefMapped << " ,timeOdomAftMapped=" << timeOdomAftMapped << std::endl;
-    if (fabs(timeOdomBefMapped - timeOdomAftMapped) < 0.005) {
+//    if (fabs(timeOdomBefMapped - timeOdomAftMapped) < 0.005) {
 
         double roll, pitch, yaw;
         geometry_msgs::Quaternion geoQuat = laserOdometry.pose.pose.orientation;
@@ -157,7 +139,7 @@ void transformMaintenance::laserOdometryHandler(const nav_msgs::Odometry &laserO
         laserOdometryTrans2.setOrigin(tf::Vector3(transformMapped[3], transformMapped[4], transformMapped[5]));
         std::cout << "tfvector" << transformMapped[3] << " " << transformMapped[4] << " " << transformMapped[5] << std::endl;
         tfBroadcaster2Pointer->sendTransform(laserOdometryTrans2);
-    }
+ //   }
 }
 
 void transformMaintenance::odomBefMappedHandler(const nav_msgs::Odometry &odomBefMapped)
