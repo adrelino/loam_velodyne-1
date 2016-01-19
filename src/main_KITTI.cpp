@@ -29,8 +29,8 @@ struct data
 int main( int argc, char** argv )
 {
     ros::init(argc, argv, "KITTI");
-    int offset = 90;
-    KITTI kitti(0,140,offset);
+    int offset = 0;
+    KITTI kitti(0,150,offset);
     loam_wrapper loam;
 
 

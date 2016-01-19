@@ -47,9 +47,9 @@ public:
     const int laserCloudCenWidth = 1;
     const int laserCloudCenHeight = 1;
     const int laserCloudCenDepth = 1;
-    static const int laserCloudWidth = 5;
-    static const int laserCloudHeight = 5;
-    static const int laserCloudDepth = 5;
+    static const int laserCloudWidth = 15;
+    static const int laserCloudHeight = 15;
+    static const int laserCloudDepth = 15;
     static const int laserCloudNum = laserCloudWidth * laserCloudHeight * laserCloudDepth;
 
     int laserCloudValidInd[27];
