@@ -52,6 +52,7 @@ class loam_wrapper
 {
 public:
     loam_wrapper();
+    ~loam_wrapper();
 
     void publishInput(sensor_msgs::PointCloud2 &pc);
     void publishGT(nav_msgs::Odometry &od);
@@ -70,6 +71,9 @@ public:
     ros::Publisher pubLaserCloudLast2;
     ros::Publisher pubLaserInput;
     ros::Publisher pubGT;
+    ros::Publisher pubFirst;
+    ros::Publisher pubSecond;
+    ros::Publisher pubMap;
 
     tf::TransformBroadcaster tfBroadcaster;
     tf::StampedTransform laserOdometryTrans;
@@ -99,7 +103,7 @@ public:
     nav_msgs::Odometry outlaserOdometry2;
 
     void newInPC(sensor_msgs::PointCloud2Ptr pc);
-    void newInPCKITTI(sensor_msgs::PointCloud2 &pc, sensor_msgs::PointCloud2 &nextpc, Eigen::Matrix4d T_gt);
+    Eigen::Matrix4d newInPCKITTI(const pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn);
     void mappingTest(sensor_msgs::PointCloud2 &pc, sensor_msgs::PointCloud2 &nextpc, Eigen::Matrix4d T);
 
 
@@ -107,7 +111,22 @@ public:
 
     void publishInput(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc);
 
-    Eigen::Matrix4d T_total;
+    Eigen::Matrix4d T_total_od;
+    Eigen::Matrix4d T_total_map;
     Eigen::Matrix4d T_gt;
+    bool isInitialized;
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharpLast;
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharpLast;
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlatLast;
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDSLast;
+
+private:
+    //    pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp;
+    //    pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp;
+    //    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat;
+    //    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS;
+    void publishFirst(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc);
+    void publishSecond(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc);
+    void publishMap(pcl::PointCloud<pcl::PointXYZI>::Ptr pc);
 
 };

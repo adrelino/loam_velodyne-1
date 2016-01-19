@@ -34,7 +34,7 @@ add_definitions(${PCL_DEFINITIONS})
 # SSE flags
 rosbuild_check_for_sse()
 #add_definitions("-DUSE_ROS")
-add_definitions("-DENABLE_SSE")
+#add_definitions("-DENABLE_SSE")
 
 # Also add some useful compiler flag
 set(CMAKE_CXX_FLAGS
@@ -51,7 +51,7 @@ ${PROJECT_SOURCE_DIR}/src/loam/loam_wrapper.cpp
 )
 
 set(util_SOURCE_FILES
-${PROJECT_SOURCE_DIR}/src/util/KITTI.cpp
+${PROJECT_SOURCE_DIR}/src/KITTI_util/KITTI.cpp
 ${PROJECT_SOURCE_DIR}/src/util/matrix.cpp
 )
 set(SOURCE_FILES

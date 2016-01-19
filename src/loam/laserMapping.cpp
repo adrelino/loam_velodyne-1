@@ -196,6 +196,17 @@ void laserMapping::laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserCl
     newLaserCloudLast = true;
 }
 
+void laserMapping::laserCloudLastHandlerVelo(const pcl::PointCloud<pcl::PointXYZHSV>::Ptr inLaserCloudLast)
+{
+    //timeLaserCloudLast = laserCloudLast2.header.stamp.toSec();
+
+    laserCloudLast->clear();
+    //pcl::fromROSMsg(laserCloudLast2, *laserCloudLast);
+    *laserCloudLast = *inLaserCloudLast;
+
+    newLaserCloudLast = true;
+}
+
 void laserMapping::laserOdometryHandler(const nav_msgs::Odometry &laserOdometry)
 {
     timeLaserOdometry = laserOdometry.header.stamp.toSec();
@@ -211,6 +222,28 @@ void laserMapping::laserOdometryHandler(const nav_msgs::Odometry &laserOdometry)
     transformSum[3] = laserOdometry.pose.pose.position.x;
     transformSum[4] = laserOdometry.pose.pose.position.y;
     transformSum[5] = laserOdometry.pose.pose.position.z;
+
+    newLaserOdometry = true;
+}
+
+void laserMapping::laserOdometryHandlerVelo(const Eigen::Matrix4d T)
+{
+    //timeLaserOdometry = laserOdometry.header.stamp.toSec();
+
+    double roll, pitch, yaw;
+    //geometry_msgs::Quaternion geoQuat = laserOdometry.pose.pose.orientation;
+
+    Eigen::Matrix3d R = T.topLeftCorner(3,3);
+    Eigen::Quaterniond q(R);
+    tf::Matrix3x3(tf::Quaternion(q.x(), q.y(), q.z(), q.w())).getRPY(roll, pitch, yaw);
+    //Eigen::Vector3d euler = R.eulerAngles(2,0,2);
+    transformSum[0] = pitch;
+    transformSum[1] = yaw;
+    transformSum[2] = roll;
+
+    transformSum[3] = T(0,3);
+    transformSum[4] = T(1,3);
+    transformSum[5] = T(2,3);
 
     newLaserOdometry = true;
 }
@@ -243,6 +276,9 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
         if (transformTobeMapped[3] + 10.0 < 0) centerCubeI--;
         if (transformTobeMapped[4] + 10.0 < 0) centerCubeJ--;
         if (transformTobeMapped[5] + 10.0 < 0) centerCubeK--;
+
+        std::cout << "centerCubeI=" << centerCubeI << ", centerCubeJ=" << centerCubeJ << ", centerCubeK=" << centerCubeK << std::endl;
+        std::cout << "laserCloudWidth=" << laserCloudWidth << ", laserCloudHeight=" << laserCloudHeight << ", laserCloudDepth=" << laserCloudDepth << std::endl;
 
         if (centerCubeI < 0 || centerCubeI >= laserCloudWidth ||
                 centerCubeJ < 0 || centerCubeJ >= laserCloudHeight ||
@@ -457,10 +493,10 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
                                     + matX.at<float>(4, 0) * 100 * matX.at<float>(4, 0) * 100
                                     + matX.at<float>(5, 0) * 100 * matX.at<float>(5, 0) * 100);
 
-//                if (deltaR < 0.1 && deltaT < 0.1) {
-//                    ROS_WARN ("[MAPPING] deltaR=%f < 0.1 && deltaT=%f < 0.1", deltaR, deltaT);
-//                    break;
-//                }
+                //                if (deltaR < 0.1 && deltaT < 0.1) {
+                //                    ROS_WARN ("[MAPPING] deltaR=%f < 0.1 && deltaT=%f < 0.1", deltaR, deltaT);
+                //                    break;
+                //                }
 
                 //ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
             }
@@ -486,7 +522,7 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
                 int cubeInd = cubeI + laserCloudWidth * cubeJ + laserCloudWidth * laserCloudHeight * cubeK;
                 //std::cout << "cubeInd=" << cubeInd << std::endl;
                 if (cubeInd>0 && cubeInd<laserCloudNum)
-                laserCloudArray[cubeInd]->push_back(pointSel);
+                    laserCloudArray[cubeInd]->push_back(pointSel);
             }
         }
 
@@ -563,6 +599,8 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
         geoQuat = tf::createQuaternionMsgFromRollPitchYaw
                 (transformAftMapped[2], -transformAftMapped[0], -transformAftMapped[1]);
 
+        setTransformationMatrix(transformAftMapped[0],transformAftMapped[1],transformAftMapped[2],transformAftMapped[3],transformAftMapped[4],transformAftMapped[5]);
+
         odomAftMapped.header.stamp = ros::Time().fromSec(timeLaserCloudLast);
         odomAftMapped.pose.pose.orientation.x = -geoQuat.y;
         odomAftMapped.pose.pose.orientation.y = -geoQuat.z;
@@ -602,6 +640,22 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
   pub4.publish(pc42);*/
     }
 
+}
+
+void laserMapping::setTransformationMatrix(double rx, double ry, double rz, double tx, double ty, double tz)
+{
+    ROS_WARN ("RESULT tx=%f, ty=%f, tz=%f, rx=%f, ry=%f, rz=%f",tx,ty,tz,rx,ry,rz);
+    Eigen::Quaterniond q;
+    geometry_msgs::Quaternion geoQuat = tf::createQuaternionMsgFromRollPitchYaw(rz, ry, rx);
+    q.x() = geoQuat.x;
+    q.y() = geoQuat.y;
+    q.z() = geoQuat.z;
+    q.w() = geoQuat.w;
+    Eigen::Matrix3d R = q.matrix();
+    T_transform << R(0,0), R(0,1), R(0,2), tx,
+            R(1,0), R(1,1), R(1,2), ty,
+            R(2,0), R(2,1), R(2,2), tz,
+            0, 0, 0, 1;
 }
 
 void laserMapping::processSurfPoints(int iterCount)

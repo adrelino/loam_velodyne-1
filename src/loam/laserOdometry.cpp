@@ -446,15 +446,6 @@ void laserOdometry::laserCloudLastHandlerVelo(const pcl::PointCloud<pcl::PointXY
 
 void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::Odometry &pubOdo)
 {
-
-    //ros::Publisher pubLaserCloudLast2 = nh.advertise<sensor_msgs::PointCloud2> ("/laser_cloud_last_2", 2);
-    //ros::Publisher pub1 = nh.advertise<sensor_msgs::PointCloud2> ("/pc1", 1);
-    //ros::Publisher pub2 = nh.advertise<sensor_msgs::PointCloud2> ("/pc2", 1);
-    //ros::Publisher pub3 = nh.advertise<sensor_msgs::PointCloud2> ("/pc3", 1);
-    //ros::Publisher pub4 = nh.advertise<sensor_msgs::PointCloud2> ("/pc4", 1);
-    //ros::Publisher pub5 = nh.advertise<sensor_msgs::PointCloud2> ("/pc5", 1);
-    //ros::Publisher pub6 = nh.advertise<sensor_msgs::PointCloud2> ("/pc6", 1);
-    //ros::Publisher pubLaserOdometry = nh.advertise<nav_msgs::Odometry> ("/cam_to_init", 5);
     nav_msgs::Odometry laserOdometry;
     laserOdometry.header.frame_id = "/camera_init";
     laserOdometry.child_frame_id = "/camera";
@@ -549,7 +540,7 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
             st = (timeLasted - startTime) / (startTimeCur - startTimeLast);
         }
         st = 50;
-        int iterNum = 50;
+        int iterNum = 750;
 
         int pointSelSkipNum = 2;
 
@@ -797,49 +788,13 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                                 + matX.at<float>(4, 0) * 100 * matX.at<float>(4, 0) * 100
                                 + matX.at<float>(5, 0) * 100 * matX.at<float>(5, 0) * 100);
 
-            if (deltaR < 0.1 && deltaT < 0.1) {
-                ROS_WARN ("deltaR=%f < 0.1 && deltaT=%f < 0.1", deltaR, deltaT);
-                //break;
+            if (deltaR < 0.005 && deltaT < 0.001) {
+                ROS_WARN ("deltaR=%f < 0.005 && deltaT=%f < 0.001", deltaR, deltaT);
+                break;
             }
 
             //ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
         }
-
-        /*sensor_msgs::PointCloud2 pc12;
-  pcl::toROSMsg(*laserCloudCornerPtr, pc12);
-  pc12.header.stamp = ros::Time().fromSec(timeLaserCloudExtreCur);
-  pc12.header.frame_id = "/camera";
-  pub1.publish(pc12);
-
-  sensor_msgs::PointCloud2 pc22;
-  pcl::toROSMsg(*laserCloudSurfPtr, pc22);
-  pc22.header.stamp = ros::Time().fromSec(timeLaserCloudExtreCur);
-  pc22.header.frame_id = "/camera";
-  pub2.publish(pc22);
-
-  sensor_msgs::PointCloud2 pc32;
-  pcl::toROSMsg(*laserCloudExtreSel, pc32);
-  pc32.header.stamp = ros::Time().fromSec(timeLaserCloudExtreCur);
-  pc32.header.frame_id = "/camera";
-  pub3.publish(pc32);
-
-  sensor_msgs::PointCloud2 pc42;
-  pcl::toROSMsg(*laserCloudExtreUnsel, pc42);
-  pc42.header.stamp = ros::Time().fromSec(timeLaserCloudExtreCur);
-  pc42.header.frame_id = "/camera";
-  pub4.publish(pc42);
-
-  sensor_msgs::PointCloud2 pc52;
-  pcl::toROSMsg(*laserCloudExtreProj, pc52);
-  pc52.header.stamp = ros::Time().fromSec(timeLaserCloudExtreCur);
-  pc52.header.frame_id = "/camera";
-  pub5.publish(pc52);
-
-  sensor_msgs::PointCloud2 pc62;
-  pcl::toROSMsg(*laserCloudSel, pc62);
-  pc62.header.stamp = ros::Time().fromSec(timeLaserCloudExtreCur);
-  pc62.header.frame_id = "/camera";
-  pub6.publish(pc62);*/
     }
 
     /// Last step
@@ -847,21 +802,21 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
     {
         //std::cout << "newLaserPoints" << std::endl;
         float rx=0, ry=0, rz=0, tx=0, ty=0, tz=0;
-
-        //AccumulateRotation(transformSum[0], transformSum[1], transformSum[2], -transform[0], -transform[1] * 1.05, -transform[2], rx, ry, rz);
+        double magic = 1.00;
+        AccumulateRotation(transformSum[0], transformSum[1], transformSum[2], -transform[0], -transform[1] * magic, -transform[2], rx, ry, rz);
 
         float x1, y1, z1;
         if (sweepEnd)
         {
             x1 = cos(rz) * (transform[3] - imuShiftFromStartXLast) - sin(rz) * (transform[4] - imuShiftFromStartYLast);
             y1 = sin(rz) * (transform[3] - imuShiftFromStartXLast) + cos(rz) * (transform[4] - imuShiftFromStartYLast);
-            z1 = transform[5] * 1.05 - imuShiftFromStartZLast;
+            z1 = transform[5] * magic - imuShiftFromStartZLast;
         }
         else
         {
             x1 = cos(rz) * (transform[3] - imuShiftFromStartXCur) - sin(rz) * (transform[4] - imuShiftFromStartYCur);
             y1 = sin(rz) * (transform[3] - imuShiftFromStartXCur) + cos(rz) * (transform[4] - imuShiftFromStartYCur);
-            z1 = transform[5] * 1.05 - imuShiftFromStartZCur;
+            z1 = transform[5] * magic - imuShiftFromStartZCur;
         }
 
         float x2 = x1;
@@ -871,6 +826,8 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
         tx = transformSum[3] - (cos(ry) * x2 + sin(ry) * z2);
         ty = transformSum[4] - y2;
         tz = transformSum[5] - (-sin(ry) * x2 + cos(ry) * z2);
+
+        setTransformationMatrix(transform[0],transform[1],transform[2],transform[3],transform[4],transform[5]);
 
         // at the end of a sweep
         if (sweepEnd)
@@ -894,7 +851,7 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
             //            }
 
 
-            setTransformationMatrix();
+
 
             TransformReset();
 
@@ -905,20 +862,24 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
             transformSum[4] = ty;
             transformSum[5] = tz;
 
+
+
             *outLaserCloudLast2 = *laserCloudCornerLast;
             *outLaserCloudLast2 += *laserCloudSurfLast;
-            sensor_msgs::PointCloud2 laserCloudLast2;
-            pcl::toROSMsg(*outLaserCloudLast2, laserCloudLast2);
-            laserCloudLast2.header.stamp = ros::Time().fromSec(timeLaserCloudLast);
-            laserCloudLast2.header.frame_id = "/camera";
-            pub = laserCloudLast2;
+            //sensor_msgs::PointCloud2 laserCloudLast2;
+            //pcl::toROSMsg(*outLaserCloudLast2, laserCloudLast2);
+            //laserCloudLast2.header.stamp = ros::Time().fromSec(timeLaserCloudLast);
+            //laserCloudLast2.header.frame_id = "/camera";
+            //pub = laserCloudLast2;
             //pubLaserCloudLast2->publish(laserCloudLast2);
 
         } else {
 
-            PluginIMURotation(rx, ry, rz, imuPitchStartCur, imuYawStartCur, imuRollStartCur,
-                              imuPitchCur, imuYawCur, imuRollCur, rx, ry, rz);
+//            PluginIMURotation(rx, ry, rz, imuPitchStartCur, imuYawStartCur, imuRollStartCur,
+//                              imuPitchCur, imuYawCur, imuRollCur, rx, ry, rz);
         }
+
+
 
         geometry_msgs::Quaternion geoQuat = tf::createQuaternionMsgFromRollPitchYaw(rz, -rx, -ry);
 
@@ -932,7 +893,7 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
 
         pubOdo = laserOdometry;
         //pubLaserOdometry->publish(laserOdometry);
-        ROS_WARN ("PUBLISHED ODOMETRY tx=%f, ty=%f, tz=%f",tx,ty,tz);
+        ROS_WARN ("PUBLISHED ODOMETRY tx=%f, ty=%f, tz=%f, qx=%f, qy=%f, qz=%f, qw=%f",tx,ty,tz,geoQuat.x,geoQuat.y,geoQuat.z,geoQuat.w);
 
 
         laserOdometryTrans->setRotation(tf::Quaternion(-geoQuat.y, -geoQuat.z, geoQuat.x, geoQuat.w));
@@ -942,18 +903,19 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
     }
 }
 
-void laserOdometry::setTransformationMatrix()
+void laserOdometry::setTransformationMatrix(double rx, double ry, double rz, double tx, double ty, double tz)
 {
+    ROS_WARN ("RESULT tx=%f, ty=%f, tz=%f, rx=%f, ry=%f, rz=%f",tx,ty,tz,rx,ry,rz);
     Eigen::Quaterniond q;
-    geometry_msgs::Quaternion geoQuat = tf::createQuaternionMsgFromRollPitchYaw(transform[0], transform[1], transform[2]);
+    geometry_msgs::Quaternion geoQuat = tf::createQuaternionMsgFromRollPitchYaw(rz, ry, rx);
     q.x() = geoQuat.x;
     q.y() = geoQuat.y;
     q.z() = geoQuat.z;
     q.w() = geoQuat.w;
     Eigen::Matrix3d R = q.matrix();
-    T_transform << R(0,0), R(0,1), R(0,2), transform[3],
-            R(1,0), R(1,1), R(1,2), transform[4],
-            R(2,0), R(2,1), R(2,2), transform[5],
+    T_transform << R(0,0), R(0,1), R(0,2), tx,
+            R(1,0), R(1,1), R(1,2), ty,
+            R(2,0), R(2,1), R(2,2), tz,
             0, 0, 0, 1;
 }
 

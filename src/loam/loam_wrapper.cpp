@@ -7,6 +7,9 @@ loam_wrapper::loam_wrapper()
     pubOdomAftMapped = nh.advertise<nav_msgs::Odometry> ("/aft_mapped_to_init_2", 5);
     pubLaserCloudSurround = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surround", 1);
     pubLaserCloudExtreCur = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_extre_cur", 2);
+    pubFirst = nh.advertise<sensor_msgs::PointCloud2>("/first", 1);
+    pubSecond = nh.advertise<sensor_msgs::PointCloud2>("/second", 2);
+    pubMap = nh.advertise<sensor_msgs::PointCloud2>("/map", 2);
     pubLaserCloudLast = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_last", 2);
     pubLaserOdometry = nh.advertise<nav_msgs::Odometry> ("/cam_to_init", 5);
     pubLaserCloudLast2 = nh.advertise<sensor_msgs::PointCloud2> ("/laser_cloud_last_2", 2);
@@ -19,8 +22,26 @@ loam_wrapper::loam_wrapper()
     scanReg2 = new scanRegistration::scanRegistration(&pubLaserCloudExtreCur,&pubLaserCloudLast);
     laserOd = new laserOdometry::laserOdometry(&tfBroadcaster,&laserOdometryTrans,&pubLaserOdometry,&pubLaserCloudLast2);
 
-    T_total = Eigen::Matrix4d::Identity();
+    T_total_od = Eigen::Matrix4d::Identity();
+    T_total_map = Eigen::Matrix4d::Identity();
     T_gt = Eigen::Matrix4d::Identity();
+    isInitialized = false;
+
+
+    cornerPointsSharpLast.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
+    surfPointsFlatLast.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
+    cornerPointsLessSharpLast.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
+    surfPointsLessFlatDSLast.reset(new pcl::PointCloud<pcl::PointXYZHSV>());
+}
+
+loam_wrapper::~loam_wrapper()
+{
+    delete transformMain;
+    delete laserMap;
+    delete scanReg;
+    delete scanReg2;
+    delete laserOd;
+
 }
 
 void loam_wrapper::publishGT(nav_msgs::Odometry &od)
@@ -42,6 +63,33 @@ void loam_wrapper::publishInput(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc)
     pc2.header.stamp = ros::Time().now();
     pc2.header.frame_id = "/camera_init_2";
     publishInput(pc2);
+}
+
+void loam_wrapper::publishFirst(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc)
+{
+    sensor_msgs::PointCloud2 pc2;
+    pcl::toROSMsg(*pc, pc2);
+    pc2.header.stamp = ros::Time().now();
+    pc2.header.frame_id = "/world";
+    pubFirst.publish(pc2);
+}
+
+void loam_wrapper::publishMap(pcl::PointCloud<pcl::PointXYZI>::Ptr pc)
+{
+    sensor_msgs::PointCloud2 pc2;
+    pcl::toROSMsg(*pc, pc2);
+    pc2.header.stamp = ros::Time().now();
+    pc2.header.frame_id = "/world";
+    pubMap.publish(pc2);
+}
+
+void loam_wrapper::publishSecond(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc)
+{
+    sensor_msgs::PointCloud2 pc2;
+    pcl::toROSMsg(*pc, pc2);
+    pc2.header.stamp = ros::Time().now();
+    pc2.header.frame_id = "/world";
+    pubSecond.publish(pc2);
 }
 
 void loam_wrapper::publishLaserCloudLast2(sensor_msgs::PointCloud2 &pc)
@@ -97,105 +145,104 @@ void loam_wrapper::newInPC(sensor_msgs::PointCloud2Ptr pc)
 
 }
 
-void loam_wrapper::newInPCKITTI(sensor_msgs::PointCloud2 &pc, sensor_msgs::PointCloud2 &nextpc, Eigen::Matrix4d inT_gt)
+Eigen::Matrix4d loam_wrapper::newInPCKITTI(const pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn)
 {
-    Eigen::Matrix4d T_gt_delta = T_gt.inverse() * inT_gt;
-    T_gt = inT_gt;
-
     /// Registration
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp(new pcl::PointCloud<pcl::PointXYZHSV>());
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp(new pcl::PointCloud<pcl::PointXYZHSV>());
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat(new pcl::PointCloud<pcl::PointXYZHSV>());
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS(new pcl::PointCloud<pcl::PointXYZHSV>());
-    sensor_msgs::PointCloud2Ptr pc_ptr2(new sensor_msgs::PointCloud2);
-    *pc_ptr2 = pc;
-    scanReg2->laserCloudHandlerVelo(pc_ptr2,cornerPointsSharp,cornerPointsLessSharp,surfPointsFlat,surfPointsLessFlatDS,false,false);
+    scanReg->laserCloudHandlerVelo(laserCloudIn,cornerPointsSharp,cornerPointsLessSharp,surfPointsFlat,surfPointsLessFlatDS,false,false);
 
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp_next(new pcl::PointCloud<pcl::PointXYZHSV>());
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp_next(new pcl::PointCloud<pcl::PointXYZHSV>());
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat_next(new pcl::PointCloud<pcl::PointXYZHSV>());
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS_next(new pcl::PointCloud<pcl::PointXYZHSV>());
-    sensor_msgs::PointCloud2Ptr pc_ptr(new sensor_msgs::PointCloud2);
-    *pc_ptr = nextpc;
-    scanReg->laserCloudHandlerVelo(pc_ptr,cornerPointsSharp_next,cornerPointsLessSharp_next,surfPointsFlat_next,surfPointsLessFlatDS_next,false,false);
 
-    /// Odometry
-    if(scanReg2->outLaserCloudLast2->size()>0)
+
+    Eigen::Matrix4d T_od = Eigen::Matrix4d::Identity();
+
+    if (isInitialized)
     {
-        laserOd->laserCloudLastHandlerVelo(cornerPointsSharp,cornerPointsLessSharp,surfPointsFlat,surfPointsLessFlatDS);
+
+
+        publishFirst(surfPointsLessFlatDSLast);
+        /// Odometry
+        laserOd->laserCloudLastHandlerVelo(cornerPointsSharpLast,cornerPointsLessSharpLast,surfPointsFlatLast,surfPointsLessFlatDSLast);
+
+
+        pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudExtreCur(new pcl::PointCloud<pcl::PointXYZHSV>());
+        *laserCloudExtreCur += *cornerPointsSharp;
+        *laserCloudExtreCur += *surfPointsFlat;
+
+        laserOd->laserCloudExtreCurHandlerVelo(laserCloudExtreCur);
+
+        publishSecond(laserCloudExtreCur);
+
+        laserOd->main_laserOdometry(pub, pubOdo);
+        T_od = laserOd->T_transform;
+        pcl::transformPointCloud (*(laserOd->outLaserCloudLast2), *(laserOd->outLaserCloudLast2), T_od);
+        T_od = T_od.inverse();
+        //        pcl::transformPointCloud (*laserCloudExtreCur, *laserCloudExtreCur, T);
+        //        publishSecond(laserCloudExtreCur);
+
+
+
+        T_total_od = T_total_od * T_od;
+
+
+
+        /// Lasser Mapping
+        //if (pubOdo.width>0)
+        laserMap->laserOdometryHandlerVelo(T_total_od);
+
+        //if (laserOd->outLaserCloudLast2.>0)
+            laserMap->laserCloudLastHandlerVelo(laserOd->outLaserCloudLast2);
+
+        //if (pub.width>0)
+        laserMap->loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
+        T_total_map = laserMap->T_transform;
+        publishMap(laserMap->laserCloudSurround);
+
+        //    /// maintanance
+        //    transformMain->odomAftMappedHandler(odomAftMapped);
+        //    transformMain->odomBefMappedHandler(odomBefMapped);
+        //    transformMain->laserOdometryHandler(pubOdo,outlaserOdometry2);
+
     }
-    if(scanReg->outLaserCloudExtreCur2->size()>0)
-        laserOd->laserCloudExtreCurHandlerVelo(scanReg->outLaserCloudExtreCur2);
+    isInitialized = true;
+    *cornerPointsSharpLast = *cornerPointsSharp;
+    *surfPointsFlatLast = *surfPointsFlat;
+    *cornerPointsLessSharpLast = *cornerPointsLessSharp;
+    *surfPointsLessFlatDSLast = *surfPointsLessFlatDS;
 
-
-
-    laserOd->main_laserOdometry(pub, pubOdo);
-    Eigen::Matrix4d T = laserOd->T_transform;
-    std::cout << "T_gt=" << T_gt << std::endl;
-    double translation_error = sqrt(T_gt_delta(0,3)*T_gt_delta(0,3)+T_gt_delta(1,3)*T_gt_delta(1,3)+T_gt_delta(2,3)*T_gt_delta(2,3));
-    std::cout << "translation_error=" << translation_error << std::endl;
-    std::cout << "T_od=" << T << std::endl;
-
-    T_total = T*T_total;
-    std::cout << "T_total=" << T_total << std::endl;
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr trans(new pcl::PointCloud<pcl::PointXYZHSV>());
-    //    *trans = *scanReg->outLaserCloudExtreCur2;
-    //    pcl::transformPointCloud(*trans, *trans, T_gt);
-    //    publishInput(trans);
-    //    publishLaserCloudLast2(scanReg2->outLaserCloudLast2);
-    std::cout << "now estimate" << std::endl;
-    //sleep(10);
-    T = T.inverse();
-    *trans = *scanReg->outLaserCloudExtreCur2;
-    pcl::transformPointCloud(*trans, *trans, T);
-    publishInput(trans);
-    publishLaserCloudLast2(scanReg2->outLaserCloudLast2);
-
-
-    //    /// Lasser Mapping
-    //    //if (pubOdo.width>0)
-    //    laserMap->laserOdometryHandler(pubOdo);
-
-    //    if (pub.width>0)
-    //        laserMap->laserCloudLastHandler(pub);
-
-    //    if (pub.width>0)
-    //        laserMap->loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
-
-    //    /// maintanance
-    //    transformMain->odomAftMappedHandler(odomAftMapped);
-    //    transformMain->odomBefMappedHandler(odomBefMapped);
-    //    transformMain->laserOdometryHandler(pubOdo,outlaserOdometry2);
+    return T_od;
 
 }
 
 void loam_wrapper::mappingTest(sensor_msgs::PointCloud2 &pc, sensor_msgs::PointCloud2 &nextpc, Eigen::Matrix4d T)
 {
-//    /// Registration
-//    sensor_msgs::PointCloud2Ptr pc_ptr2(new sensor_msgs::PointCloud2);
-//    *pc_ptr2 = pc;
-//    scanReg2->laserCloudHandlerVelo(pc_ptr2,false,true);
-//    std::cout << "---------" << std::endl;
-//    sensor_msgs::PointCloud2Ptr pc_ptr(new sensor_msgs::PointCloud2);
-//    *pc_ptr = nextpc;
-//    scanReg->laserCloudHandlerVelo(pc_ptr,true,false);
-//    std::cout << "---------" << std::endl;
+    //    /// Registration
+    //    sensor_msgs::PointCloud2Ptr pc_ptr2(new sensor_msgs::PointCloud2);
+    //    *pc_ptr2 = pc;
+    //    scanReg2->laserCloudHandlerVelo(pc_ptr2,false,true);
+    //    std::cout << "---------" << std::endl;
+    //    sensor_msgs::PointCloud2Ptr pc_ptr(new sensor_msgs::PointCloud2);
+    //    *pc_ptr = nextpc;
+    //    scanReg->laserCloudHandlerVelo(pc_ptr,true,false);
+    //    std::cout << "---------" << std::endl;
 
-//    pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudIn(new pcl::PointCloud<pcl::PointXYZHSV>());
-//    pcl::fromROSMsg(scanReg->laserCloudExtreCur2, *laserCloudIn);
-//    pcl::transformPointCloud (*laserCloudIn, *laserCloudIn, T);
-//    sensor_msgs::PointCloud2 second;
-//    pcl::toROSMsg(*laserCloudIn,second);
+    //    pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudIn(new pcl::PointCloud<pcl::PointXYZHSV>());
+    //    pcl::fromROSMsg(scanReg->laserCloudExtreCur2, *laserCloudIn);
+    //    pcl::transformPointCloud (*laserCloudIn, *laserCloudIn, T);
+    //    sensor_msgs::PointCloud2 second;
+    //    pcl::toROSMsg(*laserCloudIn,second);
 
 
-//    /// Odometry
-//    if(scanReg2->laserCloudLast2.width>0)
-//        laserOd->laserCloudLastHandler(scanReg2->laserCloudLast2);
-//    if(scanReg->laserCloudExtreCur2.width>0)
-//        laserOd->laserCloudExtreCurHandler(second);
+    //    /// Odometry
+    //    if(scanReg2->laserCloudLast2.width>0)
+    //        laserOd->laserCloudLastHandler(scanReg2->laserCloudLast2);
+    //    if(scanReg->laserCloudExtreCur2.width>0)
+    //        laserOd->laserCloudExtreCurHandler(second);
 
-//    std::cout << "---------" << std::endl;
-//    laserOd->main_laserOdometry(pub, pubOdo);
+    //    std::cout << "---------" << std::endl;
+    //    laserOd->main_laserOdometry(pub, pubOdo);
 
     //    /// Lasser Mapping
     //    //if (pubOdo.width>0)

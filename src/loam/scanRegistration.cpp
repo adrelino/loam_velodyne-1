@@ -196,20 +196,20 @@ void scanRegistration::laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr&
     skipFrameCount++;
 }
 
-void scanRegistration::laserCloudHandlerVelo(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS, bool pubExtre, bool pubLast)
+void scanRegistration::laserCloudHandlerVelo(const pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS, bool pubExtre, bool pubLast)
 {
-    if (!systemInited) {
-        initTime = laserCloudIn2->header.stamp.toSec();
-        imuPointerFront = (imuPointerLast + 1) % imuQueLength;
+//    if (!systemInited) {
+//        initTime = laserCloudIn2->header.stamp.toSec();
+//        imuPointerFront = (imuPointerLast + 1) % imuQueLength;
         systemInited = true;
-    }
+//    }
 
-    timeScanLast = timeScanCur;
-    timeScanCur = laserCloudIn2->header.stamp.toSec();
-    timeLasted = timeScanCur - initTime;
+//    timeScanLast = timeScanCur;
+//    timeScanCur = laserCloudIn2->header.stamp.toSec();
+//    timeLasted = timeScanCur - initTime;
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn(new pcl::PointCloud<pcl::PointXYZ>());
-    pcl::fromROSMsg(*laserCloudIn2, *laserCloudIn);
+//    pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn(new pcl::PointCloud<pcl::PointXYZ>());
+//    pcl::fromROSMsg(*laserCloudIn2, *laserCloudIn);
 
     std::cout << "laserCloudIn = " << laserCloudIn->size() << std::endl;
 
@@ -238,7 +238,7 @@ void scanRegistration::laserCloudHandlerVelo(const sensor_msgs::PointCloud2Const
     // Filter less flat points
     pcl::VoxelGrid<pcl::PointXYZHSV> downSizeFilter;
     downSizeFilter.setInputCloud(surfPointsLessFlat);
-    downSizeFilter.setLeafSize(0.1, 0.1, 0.1);
+    downSizeFilter.setLeafSize(0.01, 0.01, 0.01);
     downSizeFilter.filter(*surfPointsLessFlatDS);
 
     // copy
@@ -323,6 +323,7 @@ void scanRegistration::imuHandler(const sensor_msgs::Imu::ConstPtr& imuIn)
 // Take input cloud at copy it to PCL but only if inside of circle of 0.5m
 int scanRegistration::createInsidePC(const pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud)
 {
+    std::cout << "createInsidePC()" << std::endl;
     int cloudSize = 0;
     for (int i = 0; i < laserCloudIn->points.size(); i++) {
         pcl::PointXYZHSV laserPointIn;
@@ -365,6 +366,7 @@ float scanRegistration::calcLaserAngle(const pcl::PointXYZ inLaserPointFirst, co
 
 void scanRegistration::computeSmoothness(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize)
 {
+    std::cout << "computeSmoothness" << std::endl;
     for (int i = 5; i < cloudSize - 5; i++) {
         float diffX = laserCloud->points[i - 5].x + laserCloud->points[i - 4].x
                 + laserCloud->points[i - 3].x + laserCloud->points[i - 2].x
@@ -428,6 +430,7 @@ bool scanRegistration::isNewSweep(pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloud
 
 void scanRegistration::unknownFunction(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize)
 {
+    std::cout << "unknownFunction()" << std::endl;
     for (int i = 5; i < cloudSize - 6; i++) {
         float diffX = laserCloud->points[i + 1].x - laserCloud->points[i].x;
         float diffY = laserCloud->points[i + 1].y - laserCloud->points[i].y;
@@ -490,6 +493,7 @@ void scanRegistration::unknownFunction(pcl::PointCloud<pcl::PointXYZHSV>::Ptr la
 
 void scanRegistration::compFeatures(pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloud, int cloudSize)
 {
+    std::cout << "compFeatures()" << std::endl;
     int startPoints[4] = {5, 6 + int((cloudSize - 10) / 4.0),
                           6 + int((cloudSize - 10) / 2.0), 6 + int(3 * (cloudSize - 10) / 4.0)};
     int endPoints[4] = {5 + int((cloudSize - 10) / 4.0), 5 + int((cloudSize - 10) / 2.0),
@@ -501,6 +505,7 @@ void scanRegistration::compFeatures(pcl::PointCloud<pcl::PointXYZHSV>::Ptr corne
         int ep = endPoints[i];
 
 
+        /// quicksort?
         // sorts points based on smoothness
         for (int j = sp + 1; j <= ep; j++) {
             for (int k = j; k >= sp + 1; k--) {
@@ -524,10 +529,10 @@ void scanRegistration::compFeatures(pcl::PointCloud<pcl::PointXYZHSV>::Ptr corne
                     fabs(laserCloud->points[cloudSortInd[j]].z) < maxRangeFeaturesCorners) {
 
                 largestPickedNum++;
-                if (largestPickedNum <= LARGESTPICK) {
+                if (largestPickedNum <= cornerPoints) {
                     laserCloud->points[cloudSortInd[j]].v = 2;
                     cornerPointsSharp->push_back(laserCloud->points[cloudSortInd[j]]);
-                } else if (largestPickedNum <= LARGESTPICK_SEC) {
+                } else if (largestPickedNum <= cornerPointsLess) {
                     laserCloud->points[cloudSortInd[j]].v = 1;
                     cornerPointsLessSharp->push_back(laserCloud->points[cloudSortInd[j]]);
                 } else {

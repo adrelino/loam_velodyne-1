@@ -112,7 +112,7 @@ public:
     void main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::Odometry &pubOdo);
     void laserCloudLastHandlerVelo(const pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp, const pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp, const pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat, const pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS);
     void laserCloudExtreCurHandlerVelo(const pcl::PointCloud<pcl::PointXYZHSV>::Ptr inLaserCloudExtreCur3);
-    void setTransformationMatrix();
+    void setTransformationMatrix(double rx, double ry, double rz, double tx, double ty, double tz);
 private:
     int processEdgePoint(pcl::KdTreeFLANN<pcl::PointXYZHSV>::Ptr kdtreeSurfPtr, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudSurfPtr, bool isPointSel, int laserCloudSurfNum, int i, int iterCount, int iterNum);
     int number_edge;

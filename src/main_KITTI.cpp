@@ -17,7 +17,7 @@
 #include "loam/scanRegistration.h"
 #include "loam/laserOdometry.h"
 
-#include "util/KITTI.h"
+#include "KITTI_util/KITTI.h"
 
 struct data
 {
@@ -29,112 +29,125 @@ struct data
 int main( int argc, char** argv )
 {
     ros::init(argc, argv, "KITTI");
-    KITTI kitti;
+    int offset = 90;
+    KITTI kitti(0,140,offset);
     loam_wrapper loam;
 
 
 
-    std::vector<nav_msgs::Odometry> gt;
-    kitti.getGtCameraPosesAsNavMsg(gt);
-//    std::vector<Eigen::Matrix3d> Rs;
-//    std::vector<Eigen::Vector3d> ts;
-//    kitti.getGtCameraPoses(Rs,ts);
-//    pcl::PointCloud<pcl::PointXYZ> msg;
-//    kitti.getPointCloud(msg,0);
-//    pcl::PointCloud<pcl::PointXYZ> msg2;
-//    kitti.getPointCloud(msg2,2);
-//    Eigen::Matrix3d velo_to_cam_R = Rs[2];
-//    Eigen::Vector3d velo_to_cam_t = ts[2];
-//    Eigen::Matrix4d T;
-//    T << velo_to_cam_R(0,0), velo_to_cam_R(0,1), velo_to_cam_R(0,2), velo_to_cam_t(0),
-//            velo_to_cam_R(1,0), velo_to_cam_R(1,1), velo_to_cam_R(1,2), velo_to_cam_t(1),
-//            velo_to_cam_R(2,0), velo_to_cam_R(2,1), velo_to_cam_R(2,2), velo_to_cam_t(2),
-//            0 , 0 , 0 ,1;
-//    std::cout << "T=" << T << std::endl;
-//    pcl::transformPointCloud (msg2, msg2, T);
-//    sensor_msgs::PointCloud2 first;
-//    pcl::toROSMsg(msg,first);
-//    sensor_msgs::PointCloud2 second;
-//    pcl::toROSMsg(msg2,second);
-//    sleep(1);
-//    first.header.stamp = ros::Time().now();
-//    first.header.frame_id = "/camera_init_2";
-//    loam.publishInput(first);
-//    sleep(1);
-//    second.header.stamp = ros::Time().now();
-//    second.header.frame_id = "/camera_init_2";
-//    loam.publishLaserCloudLast2(second);
+
+    //    std::vector<Eigen::Matrix3d> Rs;
+    //    std::vector<Eigen::Vector3d> ts;
+    //    kitti.getGtCameraPoses(Rs,ts);
+    //    pcl::PointCloud<pcl::PointXYZ> msg;
+    //    kitti.getPointCloud(msg,0);
+    //    pcl::PointCloud<pcl::PointXYZ> msg2;
+    //    kitti.getPointCloud(msg2,2);
+    //    Eigen::Matrix3d velo_to_cam_R = Rs[2];
+    //    Eigen::Vector3d velo_to_cam_t = ts[2];
+    //    Eigen::Matrix4d T;
+    //    T << velo_to_cam_R(0,0), velo_to_cam_R(0,1), velo_to_cam_R(0,2), velo_to_cam_t(0),
+    //            velo_to_cam_R(1,0), velo_to_cam_R(1,1), velo_to_cam_R(1,2), velo_to_cam_t(1),
+    //            velo_to_cam_R(2,0), velo_to_cam_R(2,1), velo_to_cam_R(2,2), velo_to_cam_t(2),
+    //            0 , 0 , 0 ,1;
+    //    std::cout << "T=" << T << std::endl;
+    //    pcl::transformPointCloud (msg2, msg2, T);
+    //    sensor_msgs::PointCloud2 first;
+    //    pcl::toROSMsg(msg,first);
+    //    sensor_msgs::PointCloud2 second;
+    //    pcl::toROSMsg(msg2,second);
+    //    sleep(1);
+    //    first.header.stamp = ros::Time().now();
+    //    first.header.frame_id = "/camera_init_2";
+    //    loam.publishInput(first);
+    //    sleep(1);
+    //    second.header.stamp = ros::Time().now();
+    //    second.header.frame_id = "/camera_init_2";
+    //    loam.publishLaserCloudLast2(second);
 
 
 
 
 
 
-//    loam.mappingTest(first,second,T);
-//    std::cout << "---------" << std::endl;
+    //    loam.mappingTest(first,second,T);
+    //    std::cout << "---------" << std::endl;
 
 
-//    kitti.getPointCloud(msg,1);
-//    kitti.getPointCloud(msg2,2);
-//    //pcl::transformPointCloud (msg, msg, T);
-//    pcl::toROSMsg(msg,first);
-//    velo_to_cam_R = Rs[2];
-//    velo_to_cam_t = ts[2];
-//    Eigen::Matrix4d T2;
-//    T2 << velo_to_cam_R(0,0), velo_to_cam_R(0,1), velo_to_cam_R(0,2), velo_to_cam_t(0),
-//            velo_to_cam_R(1,0), velo_to_cam_R(1,1), velo_to_cam_R(1,2), velo_to_cam_t(1),
-//            velo_to_cam_R(2,0), velo_to_cam_R(2,1), velo_to_cam_R(2,2), velo_to_cam_t(2),
-//            0 , 0 , 0 ,1;
-//    T2 = T.inverse() * T2;
-//    std::cout << "T2=" << T2 << std::endl;
+    //    kitti.getPointCloud(msg,1);
+    //    kitti.getPointCloud(msg2,2);
+    //    //pcl::transformPointCloud (msg, msg, T);
+    //    pcl::toROSMsg(msg,first);
+    //    velo_to_cam_R = Rs[2];
+    //    velo_to_cam_t = ts[2];
+    //    Eigen::Matrix4d T2;
+    //    T2 << velo_to_cam_R(0,0), velo_to_cam_R(0,1), velo_to_cam_R(0,2), velo_to_cam_t(0),
+    //            velo_to_cam_R(1,0), velo_to_cam_R(1,1), velo_to_cam_R(1,2), velo_to_cam_t(1),
+    //            velo_to_cam_R(2,0), velo_to_cam_R(2,1), velo_to_cam_R(2,2), velo_to_cam_t(2),
+    //            0 , 0 , 0 ,1;
+    //    T2 = T.inverse() * T2;
+    //    std::cout << "T2=" << T2 << std::endl;
 
-//    pcl::toROSMsg(msg2,second);
-//    first.header.stamp = ros::Time().now();
-//    first.header.frame_id = "/camera_init_2";
-//    //loam.publishInput(first);
-//    sleep(1);
-//    second.header.stamp = ros::Time().now();
-//    second.header.frame_id = "/camera_init_2";
-//    //loam.publishLaserCloudLast2(second);
-//    loam.mappingTest(first,second,T2);
+    //    pcl::toROSMsg(msg2,second);
+    //    first.header.stamp = ros::Time().now();
+    //    first.header.frame_id = "/camera_init_2";
+    //    //loam.publishInput(first);
+    //    sleep(1);
+    //    second.header.stamp = ros::Time().now();
+    //    second.header.frame_id = "/camera_init_2";
+    //    //loam.publishLaserCloudLast2(second);
+    //    loam.mappingTest(first,second,T2);
 
-//    return 0;
-
-
-
+    //    return 0;
 
 
 
 
 
 
-    std::vector<Eigen::Matrix4d> Ts;
-    kitti.getGtCameraPoses(Ts);
-    kitti.writeResult(Ts);
 
 
 
 
-    sensor_msgs::PointCloud2 pc;
-    sensor_msgs::PointCloud2 pc_next;
-    for (int i=0; i<kitti.velpoints.size()-1;i++)
+    std::vector<Eigen::Matrix4d> T_result;
+    std::vector<Eigen::Matrix4d> T_result_delta;
+    T_result.push_back(Eigen::Matrix4d::Identity());
+    Eigen::Matrix4d T_all_od = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4d T_all_map = Eigen::Matrix4d::Identity();
+    for (int i=offset; i<kitti.size()-1;i++)
     {
-
-        kitti.getPointCloud2(pc,i);
-        pc.header.stamp = ros::Time().now();
-        pc.header.frame_id = "/camera_init_2";
-
-        kitti.getPointCloud2(pc_next,i+1);
-        pc_next.header.stamp = ros::Time().now();
-        pc_next.header.frame_id = "/camera_init_2";
+        pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn(new pcl::PointCloud<pcl::PointXYZ>());
+        kitti.getOneVel(laserCloudIn,i);
+       // kitti.dispLidarInImage(laserCloudIn,i);
+        Eigen::Matrix4d T = kitti.getVelo_to_cam_T();
+        pcl::transformPointCloud (*laserCloudIn, *laserCloudIn, T);
 
         //loam.publishGT(gt[i+1]);
-        loam.newInPCKITTI(pc,pc_next,Ts[i+1]);
-        std::cout << "[INFO]: i=" << i << std::endl;
 
+        Eigen::Matrix4d T_back= loam.newInPCKITTI(laserCloudIn);
+        T_result_delta.push_back(T_back);
+
+        T_all_od = loam.T_total_od;
+        T_all_map = loam.T_total_map;
+        std::cout << "[INFO]: i=" << i << std::endl;
+        std::cout << "T_back:" << T_back << std::endl;
+        std::cout << "T_all_od:" << T_all_od << std::endl;
+        std::cout << "T_all_map:" << T_all_map << std::endl;
+
+        T_result.push_back(T_all_map);
+
+        //std::vector<veloPoint> velpoints2;
+        //kitti.getOneVel(velpoints2,i);
+        //pcl::PointCloud<pcl::PointXYZHSV>::Ptr temp(new pcl::PointCloud<pcl::PointXYZHSV>());
+        //Eigen::Matrix4d T_in = T.inverse();
+        //pcl::transformPointCloud (*(loam.cornerPointsSharpLast), *temp, T_in);
+        //kitti.dispLidarInImage(temp,i);
 
         //sleep(5);
     }
+
+    kitti.eval(T_result);
+    kitti.writeResult(T_result_delta);
 
 
     //    Eigen::Matrix3Xd P0(3,4);

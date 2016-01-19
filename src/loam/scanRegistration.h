@@ -26,16 +26,18 @@ namespace scanRegistration
 {
 
 #define CLOUD 2100000 // cloudSortInd and cloudSortInd
-#define PICKSMALL 50
-#define LARGESTPICK 200
-#define LARGESTPICK_SEC 300
+#define PICKSMALL 100
+#define LARGESTPICK 100
+#define LARGESTPICK_SEC 400
 class scanRegistration
 {
 public:
-    const double maxRangeFeaturesCorners = 50; // originally 30
-    const double minRangeFeaturesCorners = 0.7; // originally 0.3
-    const double maxRangeFeaturesFlat = 50; // originally 30
-    const double minRangeFeaturesFlat = 2.0; // originally 0.3
+    const double maxRangeFeaturesCorners = 150; // originally 30
+    const double minRangeFeaturesCorners = 1.3; // originally 0.3
+    const double maxRangeFeaturesFlat = 150; // originally 30
+    const double minRangeFeaturesFlat = 1.3; // originally 0.3
+    const int cornerPoints = LARGESTPICK;
+    const int cornerPointsLess = LARGESTPICK_SEC;
     scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::Publisher * pubLaserCloudLast);
     const double PI = 3.1415926;
     const double rad2deg = 180 / PI;
@@ -107,7 +109,7 @@ public:
     void TransformToStartIMU(pcl::PointXYZHSV *p);
     void AccumulateIMUShift();
     void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2);
-    void laserCloudHandlerVelo(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn2, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS, bool pubExtre=false, bool pubLast=false);
+    void laserCloudHandlerVelo(const pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS, bool pubExtre=false, bool pubLast=false);
     void imuHandler(const sensor_msgs::Imu::ConstPtr& imuIn);
 
 private:

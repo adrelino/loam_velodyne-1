@@ -21,7 +21,7 @@
 #include <pcl/point_types.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/kdtree/kdtree_flann.h>
-
+#include <Eigen/Geometry>
 
 
 namespace laserMapping
@@ -31,6 +31,8 @@ class laserMapping
 {
 public:
     laserMapping(ros::Publisher * pubOdomBefMapped, ros::Publisher * pubOdomAftMapped, ros::Publisher * pubLaserCloudSurround);
+    void laserCloudLastHandlerVelo(const pcl::PointCloud<pcl::PointXYZHSV>::Ptr inLaserCloudLast);
+    void laserOdometryHandlerVelo(const Eigen::Matrix4d T);
 
     const double PI = 3.1415926;
     const double rad2deg = 180 / PI;
@@ -99,12 +101,14 @@ public:
     void laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserCloudLast2);
     void laserOdometryHandler(const nav_msgs::Odometry &laserOdometry);
     void loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs::Odometry & odomBefMapped,nav_msgs::Odometry & odomAftMapped);
-
+    Eigen::Matrix4d T_transform;
 private:
     void transformAssociateToMap();
     void transformUpdate();
     void pointAssociateToMap(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po);
     void processSurfPoints(int iterCount);
     void processCorner();
+    void setTransformationMatrix(double rx, double ry, double rz, double tx, double ty, double tz);
+
 };
 }
