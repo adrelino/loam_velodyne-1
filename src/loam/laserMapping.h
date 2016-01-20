@@ -112,5 +112,7 @@ private:
     void doICP();
     void associate(int iterCount);
     void solveCV();
+    void solveEigen();
+    void pointAssociateToMapEig(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po);
 };
 }

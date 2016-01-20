@@ -186,6 +186,32 @@ void laserMapping::pointAssociateToMap(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *p
     po->v = pi->v;
 }
 
+void laserMapping::pointAssociateToMapEig(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po)
+{
+    Eigen::Vector3f pi_;
+    pi_ << pi->x, pi->y, pi->z;
+    Eigen::Vector3f po_;
+    Eigen::Quaternionf q;
+    geometry_msgs::Quaternion geoQuat = tf::createQuaternionMsgFromRollPitchYaw(transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
+    q.x() = geoQuat.x;
+    q.y() = geoQuat.y;
+    q.z() = geoQuat.z;
+    q.w() = geoQuat.w;
+    Eigen::Matrix3f R = q.matrix();
+    //R = R.inverse();
+    Eigen::Vector3f t;
+    t << transformTobeMapped[3], transformTobeMapped[4], transformTobeMapped[5];
+    //t = -R*t;
+    po_ = R*pi_+t;
+
+    po->x = po_(0);
+    po->y = po_(1);
+    po->z = po_(2);
+    po->h = pi->h;
+    po->s = pi->s;
+    po->v = pi->v;
+}
+
 void laserMapping::laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserCloudLast2)
 {
     timeLaserCloudLast = laserCloudLast2.header.stamp.toSec();
@@ -267,7 +293,7 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
         pointOnZAxis.x = 0.0;
         pointOnZAxis.y = 0.0;
         pointOnZAxis.z = 10.0;
-        pointAssociateToMap(&pointOnZAxis, &pointOnZAxis);
+        pointAssociateToMapEig(&pointOnZAxis, &pointOnZAxis);
 
         int centerCubeI = int((transformTobeMapped[3] + 10.0) / 20.0) + laserCloudCenWidth;
         int centerCubeJ = int((transformTobeMapped[4] + 10.0) / 20.0) + laserCloudCenHeight;
@@ -386,14 +412,17 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
         *laserCloudLast = *laserCloudCorner2 + *laserCloudSurf2;
         laserCloudLastNum = laserCloudLast->points.size();
 
+        doICP();
+
         transformUpdate();
 
         ///
-        for (int i = 0; i < laserCloudLastNum; i++) {
+        for (int i = 0; i < laserCloudLastNum; i++)
+        {
             if (fabs(laserCloudLast->points[i].x) > 1.2 || fabs(laserCloudLast->points[i].y) > 1.2 || fabs(laserCloudLast->points[i].z) > 1.2)
             {
 
-                pointAssociateToMap(&laserCloudLast->points[i], &pointSel);
+                pointAssociateToMapEig(&laserCloudLast->points[i], &pointSel);
 
                 int cubeI = int((pointSel.x + 10.0) / 20.0) + laserCloudCenWidth;
                 int cubeJ = int((pointSel.y + 10.0) / 20.0) + laserCloudCenHeight;
@@ -751,7 +780,7 @@ void laserMapping::doICP()
         /// make association
         associate(iterCount);
 
-        solveCV();
+        solveEigen();
     }
 }
 
@@ -764,7 +793,7 @@ void laserMapping::associate(int iterCount)
         {
 
             pointOri = laserCloudLast->points[i];
-            pointAssociateToMap(&pointOri, &pointSel);
+            pointAssociateToMapEig(&pointOri, &pointSel);
             if (fabs(pointOri.v) < 0.05 || fabs(pointOri.v + 1) < 0.05)
             {
                 processSurfPoints(iterCount);
@@ -858,5 +887,110 @@ void laserMapping::solveCV()
     //                }
 
     //ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
+}
+
+void laserMapping::solveEigen()
+{
+    int laserCloudSelNum = laserCloudOri->points.size();
+    if (laserCloudSelNum < 50) {
+        return;
+    }
+    //cv::Mat matA(laserCloudSelNum, 6, CV_32F, cv::Scalar::all(0));
+    Eigen::MatrixXf A(laserCloudSelNum,6);
+    //cv::Mat matAt(6, laserCloudSelNum, CV_32F, cv::Scalar::all(0));
+    Eigen::MatrixXf At(6,laserCloudSelNum);
+    //cv::Mat matAtA(6, 6, CV_32F, cv::Scalar::all(0));
+    Eigen::MatrixXf AtA(6,6);
+    //cv::Mat matB(laserCloudSelNum, 1, CV_32F, cv::Scalar::all(0));
+    Eigen::MatrixXf B(laserCloudSelNum,1);
+    //cv::Mat matAtB(6, 1, CV_32F, cv::Scalar::all(0));
+    Eigen::MatrixXf AtB(6,1);
+    //cv::Mat matX(6, 1, CV_32F, cv::Scalar::all(0));
+    Eigen::MatrixXf X(6,1);
+
+    float srx = sin(transformTobeMapped[0]);
+    float crx = cos(transformTobeMapped[0]);
+    float sry = sin(transformTobeMapped[1]);
+    float cry = cos(transformTobeMapped[1]);
+    float srz = sin(transformTobeMapped[2]);
+    float crz = cos(transformTobeMapped[2]);
+
+    for (int i = 0; i < laserCloudSelNum; i++)
+    {
+        pointOri = laserCloudOri->points[i];
+        coeff = coeffSel->points[i];
+
+        float arx = (crx*sry*srz*pointOri.x + crx*crz*sry*pointOri.y - srx*sry*pointOri.z) * coeff.x
+                + (-srx*srz*pointOri.x - crz*srx*pointOri.y - crx*pointOri.z) * coeff.y
+                + (crx*cry*srz*pointOri.x + crx*cry*crz*pointOri.y - cry*srx*pointOri.z) * coeff.z;
+
+        float ary = ((cry*srx*srz - crz*sry)*pointOri.x
+                     + (sry*srz + cry*crz*srx)*pointOri.y + crx*cry*pointOri.z) * coeff.x
+                + ((-cry*crz - srx*sry*srz)*pointOri.x
+                   + (cry*srz - crz*srx*sry)*pointOri.y - crx*sry*pointOri.z) * coeff.z;
+
+        float arz = ((crz*srx*sry - cry*srz)*pointOri.x + (-cry*crz - srx*sry*srz)*pointOri.y)*coeff.x
+                + (crx*crz*pointOri.x - crx*srz*pointOri.y) * coeff.y
+                + ((sry*srz + cry*crz*srx)*pointOri.x + (crz*sry - cry*srx*srz)*pointOri.y)*coeff.z;
+
+        //matA.at<float>(i, 0) = arx;
+        A(i,0) = arx;
+        //matA.at<float>(i, 1) = ary;
+        A(i,1) = ary;
+        //matA.at<float>(i, 2) = arz;
+        A(i,2) = arz;
+        //matA.at<float>(i, 3) = coeff.x;
+        A(i,3) = coeff.x;
+        //matA.at<float>(i, 4) = coeff.y;
+        A(i,4) = coeff.y;
+        //matA.at<float>(i, 5) = coeff.z;
+        A(i,5) = coeff.z;
+        //matB.at<float>(i, 0) = -coeff.h;
+        B(i,0) = -coeff.h;
+    }
+    //cv::transpose(matA, matAt);
+    At = A.transpose();
+    //matAtA = matAt * matA;
+    AtA = At * A;
+    //matAtB = matAt * matB;
+    AtB = At*B;
+    //cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR);
+    X = AtA.colPivHouseholderQr().solve(AtB);
+//    if (fabs(matX.at<float>(0, 0)) < 0.5 &&
+//            fabs(matX.at<float>(1, 0)) < 0.5 &&
+//            fabs(matX.at<float>(2, 0)) < 0.5 &&
+//            fabs(matX.at<float>(3, 0)) < 1 &&
+//            fabs(matX.at<float>(4, 0)) < 1 &&
+//            fabs(matX.at<float>(5, 0)) < 1) {
+        if (fabs(X(0, 0)) < 0.5 &&
+                fabs(X(1, 0)) < 0.5 &&
+                fabs(X(2, 0)) < 0.5 &&
+                fabs(X(3, 0)) < 1 &&
+                fabs(X(4, 0)) < 1 &&
+                fabs(X(5, 0)) < 1) {
+
+        transformTobeMapped[0] += X(0, 0);
+        transformTobeMapped[1] += X(1, 0);
+        transformTobeMapped[2] += X(2, 0);
+        transformTobeMapped[3] += X(3, 0);
+        transformTobeMapped[4] += X(4, 0);
+        transformTobeMapped[5] += X(5, 0);
+    } else {
+        ROS_WARN ("Odometry update out of bound: tx=%f, ty=%f, tz=%f",X(3, 0),X(4, 0),X(5, 0));
+    }
+
+    float deltaR = sqrt(X(0, 0) * 180 / PI * X(0, 0) * 180 / PI
+                        + X(1, 0) * 180 / PI * X(1, 0) * 180 / PI
+                        + X(2, 0) * 180 / PI * X(2, 0) * 180 / PI);
+    float deltaT = sqrt(X(3, 0) * 100 * X(3, 0) * 100
+                        + X(4, 0) * 100 * X(4, 0) * 100
+                        + X(5, 0) * 100 * X(5, 0) * 100);
+
+    //                if (deltaR < 0.1 && deltaT < 0.1) {
+    //                    ROS_WARN ("[MAPPING] deltaR=%f < 0.1 && deltaT=%f < 0.1", deltaR, deltaT);
+    //                    break;
+    //                }
+
+    ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", 1, deltaR, deltaT);
 }
 }
