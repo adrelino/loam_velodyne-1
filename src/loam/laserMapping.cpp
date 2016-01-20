@@ -748,25 +748,9 @@ void laserMapping::doICP()
         //laserCloudProj->clear();
         coeffSel->clear();
 
-        ///
-        for (int i = 0; i < laserCloudLastNum; i++)
-        {
-            if (fabs(laserCloudLast->points[i].x > 1.2) || fabs(laserCloudLast->points[i].y > 1.2) ||
-                    fabs(laserCloudLast->points[i].z > 1.2))
-            {
+        /// make association
+        associate(iterCount);
 
-                pointOri = laserCloudLast->points[i];
-                pointAssociateToMap(&pointOri, &pointSel);
-                if (fabs(pointOri.v) < 0.05 || fabs(pointOri.v + 1) < 0.05)
-                {
-                    processSurfPoints(iterCount);
-                } else
-                {
-                    processCorner();
-                }
-
-            }
-        }
         int laserCloudSelNum = laserCloudOri->points.size();
 
         float srx = sin(transformTobeMapped[0]);
@@ -848,6 +832,28 @@ void laserMapping::doICP()
         //                }
 
         ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
+    }
+}
+
+void laserMapping::associate(int iterCount)
+{
+    for (int i = 0; i < laserCloudLast->points.size(); i++)
+    {
+        if (fabs(laserCloudLast->points[i].x > 1.2) || fabs(laserCloudLast->points[i].y > 1.2) ||
+                fabs(laserCloudLast->points[i].z > 1.2))
+        {
+
+            pointOri = laserCloudLast->points[i];
+            pointAssociateToMap(&pointOri, &pointSel);
+            if (fabs(pointOri.v) < 0.05 || fabs(pointOri.v + 1) < 0.05)
+            {
+                processSurfPoints(iterCount);
+            } else
+            {
+                processCorner();
+            }
+
+        }
     }
 }
 }
