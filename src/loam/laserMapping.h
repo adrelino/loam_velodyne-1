@@ -109,6 +109,6 @@ private:
     void processSurfPoints(int iterCount);
     void processCorner();
     void setTransformationMatrix(double rx, double ry, double rz, double tx, double ty, double tz);
-
+    void doICP();
 };
 }
