@@ -111,5 +111,6 @@ private:
     void setTransformationMatrix(double rx, double ry, double rz, double tx, double ty, double tz);
     void doICP();
     void associate(int iterCount);
+    void solveCV();
 };
 }

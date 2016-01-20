@@ -751,87 +751,7 @@ void laserMapping::doICP()
         /// make association
         associate(iterCount);
 
-        int laserCloudSelNum = laserCloudOri->points.size();
-
-        float srx = sin(transformTobeMapped[0]);
-        float crx = cos(transformTobeMapped[0]);
-        float sry = sin(transformTobeMapped[1]);
-        float cry = cos(transformTobeMapped[1]);
-        float srz = sin(transformTobeMapped[2]);
-        float crz = cos(transformTobeMapped[2]);
-
-        if (laserCloudSelNum < 50) {
-            continue;
-        }
-
-        cv::Mat matA(laserCloudSelNum, 6, CV_32F, cv::Scalar::all(0));
-        cv::Mat matAt(6, laserCloudSelNum, CV_32F, cv::Scalar::all(0));
-        cv::Mat matAtA(6, 6, CV_32F, cv::Scalar::all(0));
-        cv::Mat matB(laserCloudSelNum, 1, CV_32F, cv::Scalar::all(0));
-        cv::Mat matAtB(6, 1, CV_32F, cv::Scalar::all(0));
-        cv::Mat matX(6, 1, CV_32F, cv::Scalar::all(0));
-        ///
-        for (int i = 0; i < laserCloudSelNum; i++)
-        {
-            pointOri = laserCloudOri->points[i];
-            coeff = coeffSel->points[i];
-
-            float arx = (crx*sry*srz*pointOri.x + crx*crz*sry*pointOri.y - srx*sry*pointOri.z) * coeff.x
-                    + (-srx*srz*pointOri.x - crz*srx*pointOri.y - crx*pointOri.z) * coeff.y
-                    + (crx*cry*srz*pointOri.x + crx*cry*crz*pointOri.y - cry*srx*pointOri.z) * coeff.z;
-
-            float ary = ((cry*srx*srz - crz*sry)*pointOri.x
-                         + (sry*srz + cry*crz*srx)*pointOri.y + crx*cry*pointOri.z) * coeff.x
-                    + ((-cry*crz - srx*sry*srz)*pointOri.x
-                       + (cry*srz - crz*srx*sry)*pointOri.y - crx*sry*pointOri.z) * coeff.z;
-
-            float arz = ((crz*srx*sry - cry*srz)*pointOri.x + (-cry*crz - srx*sry*srz)*pointOri.y)*coeff.x
-                    + (crx*crz*pointOri.x - crx*srz*pointOri.y) * coeff.y
-                    + ((sry*srz + cry*crz*srx)*pointOri.x + (crz*sry - cry*srx*srz)*pointOri.y)*coeff.z;
-
-            matA.at<float>(i, 0) = arx;
-            matA.at<float>(i, 1) = ary;
-            matA.at<float>(i, 2) = arz;
-            matA.at<float>(i, 3) = coeff.x;
-            matA.at<float>(i, 4) = coeff.y;
-            matA.at<float>(i, 5) = coeff.z;
-            matB.at<float>(i, 0) = -coeff.h;
-        }
-        cv::transpose(matA, matAt);
-        matAtA = matAt * matA;
-        matAtB = matAt * matB;
-        cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR);
-
-        if (fabs(matX.at<float>(0, 0)) < 0.5 &&
-                fabs(matX.at<float>(1, 0)) < 0.5 &&
-                fabs(matX.at<float>(2, 0)) < 0.5 &&
-                fabs(matX.at<float>(3, 0)) < 1 &&
-                fabs(matX.at<float>(4, 0)) < 1 &&
-                fabs(matX.at<float>(5, 0)) < 1) {
-
-            transformTobeMapped[0] += matX.at<float>(0, 0);
-            transformTobeMapped[1] += matX.at<float>(1, 0);
-            transformTobeMapped[2] += matX.at<float>(2, 0);
-            transformTobeMapped[3] += matX.at<float>(3, 0);
-            transformTobeMapped[4] += matX.at<float>(4, 0);
-            transformTobeMapped[5] += matX.at<float>(5, 0);
-        } else {
-            ROS_WARN ("Odometry update out of bound: tx=%f, ty=%f, tz=%f",matX.at<float>(3, 0),matX.at<float>(4, 0),matX.at<float>(5, 0));
-        }
-
-        float deltaR = sqrt(matX.at<float>(0, 0) * 180 / PI * matX.at<float>(0, 0) * 180 / PI
-                            + matX.at<float>(1, 0) * 180 / PI * matX.at<float>(1, 0) * 180 / PI
-                            + matX.at<float>(2, 0) * 180 / PI * matX.at<float>(2, 0) * 180 / PI);
-        float deltaT = sqrt(matX.at<float>(3, 0) * 100 * matX.at<float>(3, 0) * 100
-                            + matX.at<float>(4, 0) * 100 * matX.at<float>(4, 0) * 100
-                            + matX.at<float>(5, 0) * 100 * matX.at<float>(5, 0) * 100);
-
-        //                if (deltaR < 0.1 && deltaT < 0.1) {
-        //                    ROS_WARN ("[MAPPING] deltaR=%f < 0.1 && deltaT=%f < 0.1", deltaR, deltaT);
-        //                    break;
-        //                }
-
-        ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
+        solveCV();
     }
 }
 
@@ -855,5 +775,88 @@ void laserMapping::associate(int iterCount)
 
         }
     }
+}
+
+void laserMapping::solveCV()
+{
+    int laserCloudSelNum = laserCloudOri->points.size();
+    if (laserCloudSelNum < 50) {
+        return;
+    }
+    cv::Mat matA(laserCloudSelNum, 6, CV_32F, cv::Scalar::all(0));
+    cv::Mat matAt(6, laserCloudSelNum, CV_32F, cv::Scalar::all(0));
+    cv::Mat matAtA(6, 6, CV_32F, cv::Scalar::all(0));
+    cv::Mat matB(laserCloudSelNum, 1, CV_32F, cv::Scalar::all(0));
+    cv::Mat matAtB(6, 1, CV_32F, cv::Scalar::all(0));
+    cv::Mat matX(6, 1, CV_32F, cv::Scalar::all(0));
+
+    float srx = sin(transformTobeMapped[0]);
+    float crx = cos(transformTobeMapped[0]);
+    float sry = sin(transformTobeMapped[1]);
+    float cry = cos(transformTobeMapped[1]);
+    float srz = sin(transformTobeMapped[2]);
+    float crz = cos(transformTobeMapped[2]);
+
+    for (int i = 0; i < laserCloudSelNum; i++)
+    {
+        pointOri = laserCloudOri->points[i];
+        coeff = coeffSel->points[i];
+
+        float arx = (crx*sry*srz*pointOri.x + crx*crz*sry*pointOri.y - srx*sry*pointOri.z) * coeff.x
+                + (-srx*srz*pointOri.x - crz*srx*pointOri.y - crx*pointOri.z) * coeff.y
+                + (crx*cry*srz*pointOri.x + crx*cry*crz*pointOri.y - cry*srx*pointOri.z) * coeff.z;
+
+        float ary = ((cry*srx*srz - crz*sry)*pointOri.x
+                     + (sry*srz + cry*crz*srx)*pointOri.y + crx*cry*pointOri.z) * coeff.x
+                + ((-cry*crz - srx*sry*srz)*pointOri.x
+                   + (cry*srz - crz*srx*sry)*pointOri.y - crx*sry*pointOri.z) * coeff.z;
+
+        float arz = ((crz*srx*sry - cry*srz)*pointOri.x + (-cry*crz - srx*sry*srz)*pointOri.y)*coeff.x
+                + (crx*crz*pointOri.x - crx*srz*pointOri.y) * coeff.y
+                + ((sry*srz + cry*crz*srx)*pointOri.x + (crz*sry - cry*srx*srz)*pointOri.y)*coeff.z;
+
+        matA.at<float>(i, 0) = arx;
+        matA.at<float>(i, 1) = ary;
+        matA.at<float>(i, 2) = arz;
+        matA.at<float>(i, 3) = coeff.x;
+        matA.at<float>(i, 4) = coeff.y;
+        matA.at<float>(i, 5) = coeff.z;
+        matB.at<float>(i, 0) = -coeff.h;
+    }
+    cv::transpose(matA, matAt);
+    matAtA = matAt * matA;
+    matAtB = matAt * matB;
+    cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR);
+
+    if (fabs(matX.at<float>(0, 0)) < 0.5 &&
+            fabs(matX.at<float>(1, 0)) < 0.5 &&
+            fabs(matX.at<float>(2, 0)) < 0.5 &&
+            fabs(matX.at<float>(3, 0)) < 1 &&
+            fabs(matX.at<float>(4, 0)) < 1 &&
+            fabs(matX.at<float>(5, 0)) < 1) {
+
+        transformTobeMapped[0] += matX.at<float>(0, 0);
+        transformTobeMapped[1] += matX.at<float>(1, 0);
+        transformTobeMapped[2] += matX.at<float>(2, 0);
+        transformTobeMapped[3] += matX.at<float>(3, 0);
+        transformTobeMapped[4] += matX.at<float>(4, 0);
+        transformTobeMapped[5] += matX.at<float>(5, 0);
+    } else {
+        ROS_WARN ("Odometry update out of bound: tx=%f, ty=%f, tz=%f",matX.at<float>(3, 0),matX.at<float>(4, 0),matX.at<float>(5, 0));
+    }
+
+    float deltaR = sqrt(matX.at<float>(0, 0) * 180 / PI * matX.at<float>(0, 0) * 180 / PI
+                        + matX.at<float>(1, 0) * 180 / PI * matX.at<float>(1, 0) * 180 / PI
+                        + matX.at<float>(2, 0) * 180 / PI * matX.at<float>(2, 0) * 180 / PI);
+    float deltaT = sqrt(matX.at<float>(3, 0) * 100 * matX.at<float>(3, 0) * 100
+                        + matX.at<float>(4, 0) * 100 * matX.at<float>(4, 0) * 100
+                        + matX.at<float>(5, 0) * 100 * matX.at<float>(5, 0) * 100);
+
+    //                if (deltaR < 0.1 && deltaT < 0.1) {
+    //                    ROS_WARN ("[MAPPING] deltaR=%f < 0.1 && deltaT=%f < 0.1", deltaR, deltaT);
+    //                    break;
+    //                }
+
+    //ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
 }
 }
