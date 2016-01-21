@@ -116,5 +116,6 @@ private:
     void pointAssociateToMapEig(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po);
     void extractFeatures();
     void createLaserCloudSurround(int laserCloudSurroundNum);
+    void downSampleCloud(pcl::PointCloud<pcl::PointXYZHSV>::Ptr inPC, pcl::PointCloud<pcl::PointXYZHSV>::Ptr outPC, float leafSize);
 };
 }

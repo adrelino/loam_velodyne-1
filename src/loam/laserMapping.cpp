@@ -450,16 +450,9 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
                 }
             }
 
-            laserCloudCorner2->clear();
-            pcl::VoxelGrid<pcl::PointXYZHSV> downSizeFilter;
-            downSizeFilter.setInputCloud(laserCloudCorner);
-            downSizeFilter.setLeafSize(0.05, 0.05, 0.05);
-            downSizeFilter.filter(*laserCloudCorner2);
+            downSampleCloud(laserCloudCorner,laserCloudCorner2,0.05);
 
-            laserCloudSurf2->clear();
-            downSizeFilter.setInputCloud(laserCloudSurf);
-            downSizeFilter.setLeafSize(0.1, 0.1, 0.1);
-            downSizeFilter.filter(*laserCloudSurf2);
+            downSampleCloud(laserCloudSurf,laserCloudSurf2,0.1);
 
             laserCloudCubePointer->clear();
             *laserCloudCubePointer = *laserCloudCorner2 + *laserCloudSurf2;
@@ -951,6 +944,15 @@ void laserMapping::createLaserCloudSurround(int laserCloudSurroundNum)
             laserCloudSurround->push_back(pointSurround);
         }
     }
+}
+
+void laserMapping::downSampleCloud(pcl::PointCloud<pcl::PointXYZHSV>::Ptr inPC, pcl::PointCloud<pcl::PointXYZHSV>::Ptr outPC, float leafSize)
+{
+    outPC->clear(); // make sure target cloud is empty
+    pcl::VoxelGrid<pcl::PointXYZHSV> downSizeFilter;
+    downSizeFilter.setInputCloud(inPC);
+    downSizeFilter.setLeafSize(leafSize, leafSize, leafSize);
+    downSizeFilter.filter(*outPC);
 }
 
 }
