@@ -468,40 +468,12 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
         // createLaserCloudSurround
         createLaserCloudSurround(laserCloudSurroundNum);
 
-        geometry_msgs::Quaternion geoQuat = tf::createQuaternionMsgFromRollPitchYaw
-                (transformBefMapped[2], -transformBefMapped[0], -transformBefMapped[1]);
-
-        odomBefMapped.header.stamp = ros::Time().fromSec(timeLaserCloudLast);
-        odomBefMapped.pose.pose.orientation.x = -geoQuat.y;
-        odomBefMapped.pose.pose.orientation.y = -geoQuat.z;
-        odomBefMapped.pose.pose.orientation.z = geoQuat.x;
-        odomBefMapped.pose.pose.orientation.w = geoQuat.w;
-        odomBefMapped.pose.pose.position.x = transformBefMapped[3];
-        odomBefMapped.pose.pose.position.y = transformBefMapped[4];
-        odomBefMapped.pose.pose.position.z = transformBefMapped[5];
-
-        odomBefMapped = odomBefMapped;
-        pubOdomBefMapped->publish(odomBefMapped);
-        ROS_WARN ("PUBLISHED MAPPING tx=%f, ty=%f, tz=%f",transformBefMapped[3],transformBefMapped[4],transformBefMapped[5]);
-
-        geoQuat = tf::createQuaternionMsgFromRollPitchYaw
-                (transformAftMapped[2], -transformAftMapped[0], -transformAftMapped[1]);
-
         setTransformationMatrix(transformAftMapped[0],transformAftMapped[1],transformAftMapped[2],transformAftMapped[3],transformAftMapped[4],transformAftMapped[5]);
 
-        odomAftMapped.header.stamp = ros::Time().fromSec(timeLaserCloudLast);
-        odomAftMapped.pose.pose.orientation.x = -geoQuat.y;
-        odomAftMapped.pose.pose.orientation.y = -geoQuat.z;
-        odomAftMapped.pose.pose.orientation.z = geoQuat.x;
-        odomAftMapped.pose.pose.orientation.w = geoQuat.w;
-        odomAftMapped.pose.pose.position.x = transformAftMapped[3];
-        odomAftMapped.pose.pose.position.y = transformAftMapped[4];
-        odomAftMapped.pose.pose.position.z = transformAftMapped[5];
 
-        ROS_WARN ("PUBLISHED MAPPING tx=%f, ty=%f, tz=%f",transformAftMapped[3],transformAftMapped[4],transformAftMapped[5]);
 
-        odomAftMapped = odomAftMapped;
-        pubOdomAftMapped->publish(odomAftMapped);
+
+
 
         /*sensor_msgs::PointCloud2 pc12;
   pcl::toROSMsg(*laserCloudCornerFromMap, pc12);
