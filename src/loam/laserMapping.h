@@ -115,5 +115,6 @@ private:
     void solveEigen(float &deltaR, float &deltaT);
     void pointAssociateToMapEig(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po);
     void extractFeatures();
+    void createLaserCloudSurround(int laserCloudSurroundNum);
 };
 }

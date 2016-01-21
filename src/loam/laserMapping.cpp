@@ -465,21 +465,8 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
             *laserCloudCubePointer = *laserCloudCorner2 + *laserCloudSurf2;
         }
 
-        ///
-        laserCloudSurround->clear();
-        for (int i = 0; i < laserCloudSurroundNum; i++)
-        {
-            pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCubePointer = laserCloudArray[laserCloudSurroundInd[i]];
-            int laserCloudCubeNum = laserCloudCubePointer->points.size();
-            for (int j = 0; j < laserCloudCubeNum; j++)
-            {   pcl::PointXYZI pointSurround;
-                pointSurround.x = laserCloudCubePointer->points[j].x;
-                pointSurround.y = laserCloudCubePointer->points[j].y;
-                pointSurround.z = laserCloudCubePointer->points[j].z;
-                pointSurround.intensity = laserCloudCubePointer->points[j].h;
-                laserCloudSurround->push_back(pointSurround);
-            }
-        }
+        // createLaserCloudSurround
+        createLaserCloudSurround(laserCloudSurroundNum);
 
         sensor_msgs::PointCloud2 laserCloudSurround2;
         pcl::toROSMsg(*laserCloudSurround, laserCloudSurround2);
@@ -1012,4 +999,23 @@ void laserMapping::extractFeatures()
         }
     }
 }
+
+void laserMapping::createLaserCloudSurround(int laserCloudSurroundNum)
+{
+    laserCloudSurround->clear();
+    for (int i = 0; i < laserCloudSurroundNum; i++)
+    {
+        pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCubePointer = laserCloudArray[laserCloudSurroundInd[i]];
+        int laserCloudCubeNum = laserCloudCubePointer->points.size();
+        for (int j = 0; j < laserCloudCubeNum; j++)
+        {   pcl::PointXYZI pointSurround;
+            pointSurround.x = laserCloudCubePointer->points[j].x;
+            pointSurround.y = laserCloudCubePointer->points[j].y;
+            pointSurround.z = laserCloudCubePointer->points[j].z;
+            pointSurround.intensity = laserCloudCubePointer->points[j].h;
+            laserCloudSurround->push_back(pointSurround);
+        }
+    }
+}
+
 }
