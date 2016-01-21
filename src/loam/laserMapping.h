@@ -83,7 +83,6 @@ public:
     std::vector<float> pointSearchSqDis;
 
     pcl::PointXYZHSV pointOri, pointSel, pointProj, coeff;
-    pcl::PointXYZI pointSurround;
 
     cv::Mat matA0;//(5, 3, CV_32F, cv::Scalar::all(0));
     cv::Mat matB0;//(5, 1, CV_32F, cv::Scalar::all(-1));

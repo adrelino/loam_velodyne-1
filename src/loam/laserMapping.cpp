@@ -389,13 +389,14 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
         // get rid of this by transmitting corners and surfs separate
         extractFeatures();
 
-
+        // downfilter corner features
         laserCloudCorner2->clear();
         pcl::VoxelGrid<pcl::PointXYZHSV> downSizeFilter;
         downSizeFilter.setInputCloud(laserCloudCorner);
         downSizeFilter.setLeafSize(0.05, 0.05, 0.05);
         downSizeFilter.filter(*laserCloudCorner2);
 
+        // downfilter surf features
         laserCloudSurf2->clear();
         downSizeFilter.setInputCloud(laserCloudSurf);
         downSizeFilter.setLeafSize(0.1, 0.1, 0.1);
@@ -403,18 +404,20 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
 
         laserCloudLast->clear();
         *laserCloudLast = *laserCloudCorner2 + *laserCloudSurf2;
-        int laserCloudLastNum = laserCloudLast->points.size();
 
+
+        // do ICP
         doICP();
 
         transformUpdate();
 
-        ///
+        /// store point in array based on cube indeces
+        int laserCloudLastNum = laserCloudLast->points.size();
         for (int i = 0; i < laserCloudLastNum; i++)
         {
             if (fabs(laserCloudLast->points[i].x) > 1.2 || fabs(laserCloudLast->points[i].y) > 1.2 || fabs(laserCloudLast->points[i].z) > 1.2)
             {
-
+                // transform point to current estimate
                 pointAssociateToMapEig(&laserCloudLast->points[i], &pointSel);
 
                 int cubeI = int((pointSel.x + 10.0) / 20.0) + laserCloudCenWidth;
@@ -440,8 +443,7 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
             pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCubePointer = laserCloudArray[laserCloudValidInd[i]];
             int laserCloudCubeNum = laserCloudCubePointer->points.size();
             for (int j = 0; j < laserCloudCubeNum; j++) {
-                if (fabs(laserCloudCubePointer->points[j].v - 2) < 0.005 ||
-                        fabs(laserCloudCubePointer->points[j].v - 1) < 0.005) {
+                if (fabs(laserCloudCubePointer->points[j].v - 2) < 0.005 || fabs(laserCloudCubePointer->points[j].v - 1) < 0.005) {
                     laserCloudCorner->push_back(laserCloudCubePointer->points[j]);
                 } else {
                     laserCloudSurf->push_back(laserCloudCubePointer->points[j]);
@@ -469,7 +471,8 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
         {
             pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCubePointer = laserCloudArray[laserCloudSurroundInd[i]];
             int laserCloudCubeNum = laserCloudCubePointer->points.size();
-            for (int j = 0; j < laserCloudCubeNum; j++) {
+            for (int j = 0; j < laserCloudCubeNum; j++)
+            {   pcl::PointXYZI pointSurround;
                 pointSurround.x = laserCloudCubePointer->points[j].x;
                 pointSurround.y = laserCloudCubePointer->points[j].y;
                 pointSurround.z = laserCloudCubePointer->points[j].z;
