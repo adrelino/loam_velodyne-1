@@ -468,14 +468,6 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
         // createLaserCloudSurround
         createLaserCloudSurround(laserCloudSurroundNum);
 
-        sensor_msgs::PointCloud2 laserCloudSurround2;
-        pcl::toROSMsg(*laserCloudSurround, laserCloudSurround2);
-        laserCloudSurround2.header.stamp = ros::Time().fromSec(timeLaserCloudLast);
-        laserCloudSurround2.header.frame_id = "/camera_init_2";
-
-        laser_cloud_surround = laserCloudSurround2;
-        pubLaserCloudSurround->publish(laserCloudSurround2);
-
         geometry_msgs::Quaternion geoQuat = tf::createQuaternionMsgFromRollPitchYaw
                 (transformBefMapped[2], -transformBefMapped[0], -transformBefMapped[1]);
 
