@@ -374,6 +374,7 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
         }
         int laserCloudFromMapNum = laserCloudFromMap->points.size();
 
+        // get rid of this
         laserCloudCornerFromMap->clear();
         laserCloudSurfFromMap->clear();
         for (int i = 0; i < laserCloudFromMapNum; i++) {
@@ -385,17 +386,9 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
             }
         }
 
-        laserCloudCorner->clear();
-        laserCloudSurf->clear();
-        int laserCloudLastNum = laserCloudLast->points.size();
-        for (int i = 0; i < laserCloudLastNum; i++) {
-            if (fabs(laserCloudLast->points[i].v - 2) < 0.005 ||
-                    fabs(laserCloudLast->points[i].v - 1) < 0.005) {
-                laserCloudCorner->push_back(laserCloudLast->points[i]);
-            } else {
-                laserCloudSurf->push_back(laserCloudLast->points[i]);
-            }
-        }
+        // get rid of this by transmitting corners and surfs separate
+        extractFeatures();
+
 
         laserCloudCorner2->clear();
         pcl::VoxelGrid<pcl::PointXYZHSV> downSizeFilter;
@@ -410,7 +403,7 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
 
         laserCloudLast->clear();
         *laserCloudLast = *laserCloudCorner2 + *laserCloudSurf2;
-        laserCloudLastNum = laserCloudLast->points.size();
+        int laserCloudLastNum = laserCloudLast->points.size();
 
         doICP();
 
@@ -440,11 +433,11 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
         }
 
         ///
-        for (int i = 0; i < laserCloudValidNum; i++) {
+        for (int i = 0; i < laserCloudValidNum; i++)
+        {
             laserCloudCorner->clear();
             laserCloudSurf->clear();
-            pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCubePointer =
-                    laserCloudArray[laserCloudValidInd[i]];
+            pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCubePointer = laserCloudArray[laserCloudValidInd[i]];
             int laserCloudCubeNum = laserCloudCubePointer->points.size();
             for (int j = 0; j < laserCloudCubeNum; j++) {
                 if (fabs(laserCloudCubePointer->points[j].v - 2) < 0.005 ||
@@ -472,9 +465,9 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
 
         ///
         laserCloudSurround->clear();
-        for (int i = 0; i < laserCloudSurroundNum; i++) {
-            pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCubePointer =
-                    laserCloudArray[laserCloudSurroundInd[i]];
+        for (int i = 0; i < laserCloudSurroundNum; i++)
+        {
+            pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCubePointer = laserCloudArray[laserCloudSurroundInd[i]];
             int laserCloudCubeNum = laserCloudCubePointer->points.size();
             for (int j = 0; j < laserCloudCubeNum; j++) {
                 pointSurround.x = laserCloudCubePointer->points[j].x;
@@ -768,8 +761,8 @@ void laserMapping::doICP()
 
     ///
 
-
-    for (int iterCount = 0; iterCount < 20; iterCount++)
+    float deltaR, deltaT;
+    for (int iterCount = 0; iterCount < maxIteration; iterCount++)
     {
         laserCloudOri->clear();
         //laserCloudSel->clear();
@@ -780,7 +773,17 @@ void laserMapping::doICP()
         /// make association
         associate(iterCount);
 
-        solveEigen();
+        solveEigen(deltaR,deltaT);
+
+        ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
+
+        if (deltaR < 0.1 && deltaT < 0.1) {
+            ROS_INFO ("[MAPPING] deltaR=%f < 0.1 && deltaT=%f < 0.1", deltaR, deltaT);
+            break;
+        }
+    }
+    if (deltaR > 0.1 || deltaT > 0.1) {
+        ROS_WARN ("[MAPPING] deltaR=%f < 0.1 && deltaT=%f < 0.1", deltaR, deltaT);
     }
 }
 
@@ -889,7 +892,7 @@ void laserMapping::solveCV()
     //ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
 }
 
-void laserMapping::solveEigen()
+void laserMapping::solveEigen(float &deltaR, float &deltaT)
 {
     int laserCloudSelNum = laserCloudOri->points.size();
     if (laserCloudSelNum < 50) {
@@ -915,11 +918,12 @@ void laserMapping::solveEigen()
     float srz = sin(transformTobeMapped[2]);
     float crz = cos(transformTobeMapped[2]);
 
+    /// paralaizable
     for (int i = 0; i < laserCloudSelNum; i++)
     {
         pointOri = laserCloudOri->points[i];
         coeff = coeffSel->points[i];
-
+        //
         float arx = (crx*sry*srz*pointOri.x + crx*crz*sry*pointOri.y - srx*sry*pointOri.z) * coeff.x
                 + (-srx*srz*pointOri.x - crz*srx*pointOri.y - crx*pointOri.z) * coeff.y
                 + (crx*cry*srz*pointOri.x + crx*cry*crz*pointOri.y - cry*srx*pointOri.z) * coeff.z;
@@ -955,19 +959,22 @@ void laserMapping::solveEigen()
     //matAtB = matAt * matB;
     AtB = At*B;
     //cv::solve(matAtA, matAtB, matX, cv::DECOMP_QR);
-    X = AtA.colPivHouseholderQr().solve(AtB);
-//    if (fabs(matX.at<float>(0, 0)) < 0.5 &&
-//            fabs(matX.at<float>(1, 0)) < 0.5 &&
-//            fabs(matX.at<float>(2, 0)) < 0.5 &&
-//            fabs(matX.at<float>(3, 0)) < 1 &&
-//            fabs(matX.at<float>(4, 0)) < 1 &&
-//            fabs(matX.at<float>(5, 0)) < 1) {
-        if (fabs(X(0, 0)) < 0.5 &&
-                fabs(X(1, 0)) < 0.5 &&
-                fabs(X(2, 0)) < 0.5 &&
-                fabs(X(3, 0)) < 1 &&
-                fabs(X(4, 0)) < 1 &&
-                fabs(X(5, 0)) < 1) {
+
+    //X = AtA.colPivHouseholderQr().solve(AtB);
+
+    X = AtA.householderQr().solve(AtB);
+    //    if (fabs(matX.at<float>(0, 0)) < 0.5 &&
+    //            fabs(matX.at<float>(1, 0)) < 0.5 &&
+    //            fabs(matX.at<float>(2, 0)) < 0.5 &&
+    //            fabs(matX.at<float>(3, 0)) < 1 &&
+    //            fabs(matX.at<float>(4, 0)) < 1 &&
+    //            fabs(matX.at<float>(5, 0)) < 1) {
+    if (fabs(X(0, 0)) < 0.5 &&
+            fabs(X(1, 0)) < 0.5 &&
+            fabs(X(2, 0)) < 0.5 &&
+            fabs(X(3, 0)) < 1 &&
+            fabs(X(4, 0)) < 1 &&
+            fabs(X(5, 0)) < 1) {
 
         transformTobeMapped[0] += X(0, 0);
         transformTobeMapped[1] += X(1, 0);
@@ -979,18 +986,27 @@ void laserMapping::solveEigen()
         ROS_WARN ("Odometry update out of bound: tx=%f, ty=%f, tz=%f",X(3, 0),X(4, 0),X(5, 0));
     }
 
-    float deltaR = sqrt(X(0, 0) * 180 / PI * X(0, 0) * 180 / PI
-                        + X(1, 0) * 180 / PI * X(1, 0) * 180 / PI
-                        + X(2, 0) * 180 / PI * X(2, 0) * 180 / PI);
-    float deltaT = sqrt(X(3, 0) * 100 * X(3, 0) * 100
-                        + X(4, 0) * 100 * X(4, 0) * 100
-                        + X(5, 0) * 100 * X(5, 0) * 100);
+    deltaR = sqrt(X(0, 0) * 180 / PI * X(0, 0) * 180 / PI
+                  + X(1, 0) * 180 / PI * X(1, 0) * 180 / PI
+                  + X(2, 0) * 180 / PI * X(2, 0) * 180 / PI);
+    deltaT = sqrt(X(3, 0) * 100 * X(3, 0) * 100
+                  + X(4, 0) * 100 * X(4, 0) * 100
+                  + X(5, 0) * 100 * X(5, 0) * 100);
 
-    //                if (deltaR < 0.1 && deltaT < 0.1) {
-    //                    ROS_WARN ("[MAPPING] deltaR=%f < 0.1 && deltaT=%f < 0.1", deltaR, deltaT);
-    //                    break;
-    //                }
+}
 
-    ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", 1, deltaR, deltaT);
+// Extracts the corner and surface features from input cloud and stores them in laserCloudCorner/laserCloudSurf
+void laserMapping::extractFeatures()
+{
+    laserCloudCorner->clear();
+    laserCloudSurf->clear();
+    int laserCloudLastNum = laserCloudLast->points.size();
+    for (int i = 0; i < laserCloudLastNum; i++) {
+        if (fabs(laserCloudLast->points[i].v - 2) < 0.005 || fabs(laserCloudLast->points[i].v - 1) < 0.005) {
+            laserCloudCorner->push_back(laserCloudLast->points[i]);
+        } else {
+            laserCloudSurf->push_back(laserCloudLast->points[i]);
+        }
+    }
 }
 }

@@ -30,6 +30,7 @@ namespace laserMapping
 class laserMapping
 {
 public:
+    const int maxIteration = 50;
     laserMapping(ros::Publisher * pubOdomBefMapped, ros::Publisher * pubOdomAftMapped, ros::Publisher * pubLaserCloudSurround);
     void laserCloudLastHandlerVelo(const pcl::PointCloud<pcl::PointXYZHSV>::Ptr inLaserCloudLast);
     void laserOdometryHandlerVelo(const Eigen::Matrix4d T);
@@ -112,7 +113,8 @@ private:
     void doICP();
     void associate(int iterCount);
     void solveCV();
-    void solveEigen();
+    void solveEigen(float &deltaR, float &deltaT);
     void pointAssociateToMapEig(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po);
+    void extractFeatures();
 };
 }
