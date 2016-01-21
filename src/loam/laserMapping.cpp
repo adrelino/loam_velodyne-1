@@ -276,12 +276,6 @@ void laserMapping::laserOdometryHandlerVelo(const Eigen::Matrix4d T)
 
 void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs::Odometry & odomBefMapped,nav_msgs::Odometry & odomAftMapped)
 {
-    odomBefMapped.header.frame_id = "/camera_init_2";
-    odomBefMapped.child_frame_id = "/bef_mapped";
-
-    odomAftMapped.header.frame_id = "/camera_init_2";
-    odomAftMapped.child_frame_id = "/aft_mapped";
-
     if (newLaserCloudLast && newLaserOdometry) // && fabs(timeLaserCloudLast - timeLaserOdometry) < 0.005)
     {
         newLaserCloudLast = false;
@@ -389,24 +383,13 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
         // get rid of this by transmitting corners and surfs separate
         extractFeatures();
 
-        // downfilter corner features
-        laserCloudCorner2->clear();
-        pcl::VoxelGrid<pcl::PointXYZHSV> downSizeFilter;
-        downSizeFilter.setInputCloud(laserCloudCorner);
-        downSizeFilter.setLeafSize(0.05, 0.05, 0.05);
-        downSizeFilter.filter(*laserCloudCorner2);
+        downSampleCloud(laserCloudCorner,laserCloudCorner2,0.05);
 
-        // downfilter surf features
-        laserCloudSurf2->clear();
-        downSizeFilter.setInputCloud(laserCloudSurf);
-        downSizeFilter.setLeafSize(0.1, 0.1, 0.1);
-        downSizeFilter.filter(*laserCloudSurf2);
+        downSampleCloud(laserCloudSurf,laserCloudSurf2,0.1);
 
         laserCloudLast->clear();
         *laserCloudLast = *laserCloudCorner2 + *laserCloudSurf2;
 
-
-        // do ICP
         doICP();
 
         transformUpdate();
