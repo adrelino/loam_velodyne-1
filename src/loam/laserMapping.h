@@ -30,6 +30,8 @@ namespace laserMapping
 class laserMapping
 {
 public:
+    const float icp_R_break = 0.1;
+    const float icp_T_break = 0.1;
     const int maxIteration = 50;
     laserMapping(ros::Publisher * pubOdomBefMapped, ros::Publisher * pubOdomAftMapped, ros::Publisher * pubLaserCloudSurround);
     void laserCloudLastHandlerVelo(const pcl::PointCloud<pcl::PointXYZHSV>::Ptr inLaserCloudLast);

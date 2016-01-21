@@ -317,19 +317,19 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
             {
                 for (int k = centerCubeK - 1; k <= centerCubeK + 1; k++)
                 {
-                    if (i >= 0 && i < laserCloudWidth &&
-                            j >= 0 && j < laserCloudHeight &&
-                            k >= 0 && k < laserCloudDepth)
+                    if (i >= 0 && i < laserCloudWidth && j >= 0 && j < laserCloudHeight && k >= 0 && k < laserCloudDepth)
                     {
-
                         float centerX = 20.0 * (i - laserCloudCenWidth);
                         float centerY = 20.0 * (j - laserCloudCenHeight);
                         float centerZ = 20.0 * (k - laserCloudCenDepth);
 
                         bool isInLaserFOV = false;
-                        for (int ii = -1; ii <= 1; ii += 2) {
-                            for (int jj = -1; jj <= 1; jj += 2) {
-                                for (int kk = -1; kk <= 1; kk += 2) {
+                        for (int ii = -1; ii <= 1; ii += 2)
+                        {
+                            for (int jj = -1; jj <= 1; jj += 2)
+                            {
+                                for (int kk = -1; kk <= 1; kk += 2)
+                                {
                                     float cornerX = centerX + 10.0 * ii;
                                     float cornerY = centerY + 10.0 * jj;
                                     float cornerZ = centerZ + 10.0 * kk;
@@ -372,8 +372,7 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
         laserCloudCornerFromMap->clear();
         laserCloudSurfFromMap->clear();
         for (int i = 0; i < laserCloudFromMapNum; i++) {
-            if (fabs(laserCloudFromMap->points[i].v - 2) < 0.005 ||
-                    fabs(laserCloudFromMap->points[i].v - 1) < 0.005) {
+            if (fabs(laserCloudFromMap->points[i].v - 2) < 0.005 || fabs(laserCloudFromMap->points[i].v - 1) < 0.005) {
                 laserCloudCornerFromMap->push_back(laserCloudFromMap->points[i]);
             } else {
                 laserCloudSurfFromMap->push_back(laserCloudFromMap->points[i]);
@@ -676,15 +675,15 @@ void laserMapping::doICP()
 
         solveEigen(deltaR,deltaT);
 
-        ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
+        std::cout << "[Mapping] iter: " << iterCount << ", deltaR: " << deltaR << ", deltaT: " << deltaT << std::endl;
 
-        if (deltaR < 0.1 && deltaT < 0.1) {
-            ROS_INFO ("[MAPPING] deltaR=%f < 0.1 && deltaT=%f < 0.1", deltaR, deltaT);
+        if (deltaR < icp_R_break && deltaT < icp_T_break) {
+            std::cout << "[MAPPING] deltaR:" << deltaR << " < " << icp_R_break << " && deltaT: " << deltaT << " < " << icp_T_break << std::endl;
             break;
         }
     }
     if (deltaR > 0.1 || deltaT > 0.1) {
-        ROS_WARN ("[MAPPING] deltaR=%f < 0.1 && deltaT=%f < 0.1", deltaR, deltaT);
+        std::cout << "[MAPPING] Out of bound deltaR: " << deltaR << " , deltaT: " << deltaT << std::endl;
     }
 }
 
