@@ -465,39 +465,10 @@ void laserMapping::loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs
             *laserCloudCubePointer = *laserCloudCorner2 + *laserCloudSurf2;
         }
 
-        // createLaserCloudSurround
         createLaserCloudSurround(laserCloudSurroundNum);
 
         setTransformationMatrix(transformAftMapped[0],transformAftMapped[1],transformAftMapped[2],transformAftMapped[3],transformAftMapped[4],transformAftMapped[5]);
 
-
-
-
-
-
-        /*sensor_msgs::PointCloud2 pc12;
-  pcl::toROSMsg(*laserCloudCornerFromMap, pc12);
-  pc12.header.stamp = ros::Time().fromSec(timeLaserCloudLast);
-  pc12.header.frame_id = "/camera_init_2";
-  pub1.publish(pc12);
-
-  sensor_msgs::PointCloud2 pc22;
-  pcl::toROSMsg(*laserCloudSel, pc22);
-  pc22.header.stamp = ros::Time().fromSec(timeLaserCloudLast);
-  pc22.header.frame_id = "/camera_init_2";
-  pub2.publish(pc22);
-
-  sensor_msgs::PointCloud2 pc32;
-  pcl::toROSMsg(*laserCloudCorr, pc32);
-  pc32.header.stamp = ros::Time().fromSec(timeLaserCloudLast);
-  pc32.header.frame_id = "/camera_init_2";
-  pub3.publish(pc32);
-
-  sensor_msgs::PointCloud2 pc42;
-  pcl::toROSMsg(*laserCloudProj, pc42);
-  pc42.header.stamp = ros::Time().fromSec(timeLaserCloudLast);
-  pc42.header.frame_id = "/camera_init_2";
-  pub4.publish(pc42);*/
     }
 
 }
