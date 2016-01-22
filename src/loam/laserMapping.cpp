@@ -590,20 +590,23 @@ void laserMapping::processCorner(pcl::PointXYZHSV &searchPoint, pcl::PointXYZHSV
 
             if (eig(0, 0).real() > 3 * eig(0, 1).real())
             {
-
                 float x0 = searchPoint.x;
                 float y0 = searchPoint.y;
                 float z0 = searchPoint.z;
+                Eigen::Vector3f X_k_1;
+                X_k_1 << x0, y0, z0;
+
                 float x1 = cx + 0.1 * eig_vec(0, 0).real();
                 float y1 = cy + 0.1 * eig_vec(0, 1).real();
                 float z1 = cz + 0.1 * eig_vec(0, 2).real();
-                Eigen::Vector3f v1;
-                v1 << x1, y1, z1;
+                Eigen::Vector3f X_k_j;
+                X_k_j << x1, y1, z1;
+
                 float x2 = cx - 0.1 * eig_vec(0, 0).real();
                 float y2 = cy - 0.1 * eig_vec(0, 1).real();
                 float z2 = cz - 0.1 * eig_vec(0, 2).real();
-                Eigen::Vector3f v2;
-                v2 << x2, y2, z2;
+                Eigen::Vector3f X_k_l;
+                X_k_l << x2, y2, z2;
 
 //                float a012 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
 //                                  * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
@@ -611,20 +614,14 @@ void laserMapping::processCorner(pcl::PointXYZHSV &searchPoint, pcl::PointXYZHSV
 //                                  * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
 //                                  + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))
 //                                  * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
-                Eigen::Vector3f temp;
-                temp << (x0 - x1)*(y0 - y2), (x0 - x1)*(z0 - z2), (y0 - y1)*(z0 - z2);
-                Eigen::Vector3f temp2;
-                temp2 << (x0 - x2)*(y0 - y1), (x0 - x2)*(z0 - z1), (y0 - y2)*(z0 - z1);
-                Eigen::Vector3f diff_temp;
-                diff_temp = temp - temp2;
-                float a012 = diff_temp.norm();
-
-
-
-
+                Eigen::Vector3f left = X_k_1-X_k_j;
+                Eigen::Vector3f crossp = left.cross(X_k_1-X_k_l);
+                a012 = crossp.norm();
                 //float l12 = sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2) + (z1 - z2)*(z1 - z2));
-                Eigen::Vector3f diff = v1 - v2;
+                Eigen::Vector3f diff = X_k_j - X_k_l;
                 float l12 = diff.norm();
+                float ld2 = a012 / l12; // point to line distance
+
 
 
                 float la = ((y1 - y2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
@@ -636,7 +633,7 @@ void laserMapping::processCorner(pcl::PointXYZHSV &searchPoint, pcl::PointXYZHSV
                 float lc = -((x1 - x2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
                              + (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
 
-                float ld2 = a012 / l12;
+
 
                 pointProj = searchPoint;
                 pointProj.x -= la * ld2;
