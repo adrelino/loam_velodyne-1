@@ -573,46 +573,59 @@ void laserMapping::processCorner(pcl::PointXYZHSV &searchPoint, pcl::PointXYZHSV
                 a23 += ay * az;
                 a33 += az * az;
             }
-            a11 /= 5;
-            a12 /= 5;
-            a13 /= 5;
-            a22 /= 5;
-            a23 /= 5;
-            a33 /= 5;
 
-            matA1.at<float>(0, 0) = a11;
-            matA1.at<float>(0, 1) = a12;
-            matA1.at<float>(0, 2) = a13;
-            matA1.at<float>(1, 0) = a12;
-            matA1.at<float>(1, 1) = a22;
-            matA1.at<float>(1, 2) = a23;
-            matA1.at<float>(2, 0) = a13;
-            matA1.at<float>(2, 1) = a23;
-            matA1.at<float>(2, 2) = a33;
+            Eigen::Matrix3f A1;
+            A1 << a11, a12, a13, a12, a22, a23, a13, a23, a33;
+            A1 = A1 / 5;
 
-            cv::eigen(matA1, matD1, matV1);
+            Eigen::EigenSolver<Eigen::Matrix3f> es;
+            es.compute(A1,true);
+            Eigen::Matrix<std::complex<float>, 3, 1>  eig = es.eigenvalues();
+            Eigen::Matrix<std::complex<float>, 3, 3> eig_vec = es.eigenvectors();
 
-            if (matD1.at<float>(0, 0) > 3 * matD1.at<float>(0, 1))
+
+
+
+            //cv::eigen(matA1, matD1, matV1);
+
+            if (eig(0, 0).real() > 3 * eig(0, 1).real())
             {
 
                 float x0 = searchPoint.x;
                 float y0 = searchPoint.y;
                 float z0 = searchPoint.z;
-                float x1 = cx + 0.1 * matV1.at<float>(0, 0);
-                float y1 = cy + 0.1 * matV1.at<float>(0, 1);
-                float z1 = cz + 0.1 * matV1.at<float>(0, 2);
-                float x2 = cx - 0.1 * matV1.at<float>(0, 0);
-                float y2 = cy - 0.1 * matV1.at<float>(0, 1);
-                float z2 = cz - 0.1 * matV1.at<float>(0, 2);
+                float x1 = cx + 0.1 * eig_vec(0, 0).real();
+                float y1 = cy + 0.1 * eig_vec(0, 1).real();
+                float z1 = cz + 0.1 * eig_vec(0, 2).real();
+                Eigen::Vector3f v1;
+                v1 << x1, y1, z1;
+                float x2 = cx - 0.1 * eig_vec(0, 0).real();
+                float y2 = cy - 0.1 * eig_vec(0, 1).real();
+                float z2 = cz - 0.1 * eig_vec(0, 2).real();
+                Eigen::Vector3f v2;
+                v2 << x2, y2, z2;
 
-                float a012 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                                  * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                                  + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                                  * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                                  + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))
-                                  * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
+//                float a012 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
+//                                  * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
+//                                  + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
+//                                  * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
+//                                  + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))
+//                                  * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
+                Eigen::Vector3f temp;
+                temp << (x0 - x1)*(y0 - y2), (x0 - x1)*(z0 - z2), (y0 - y1)*(z0 - z2);
+                Eigen::Vector3f temp2;
+                temp2 << (x0 - x2)*(y0 - y1), (x0 - x2)*(z0 - z1), (y0 - y2)*(z0 - z1);
+                Eigen::Vector3f diff_temp;
+                diff_temp = temp - temp2;
+                float a012 = diff_temp.norm();
 
-                float l12 = sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2) + (z1 - z2)*(z1 - z2));
+
+
+
+                //float l12 = sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2) + (z1 - z2)*(z1 - z2));
+                Eigen::Vector3f diff = v1 - v2;
+                float l12 = diff.norm();
+
 
                 float la = ((y1 - y2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
                             + (z1 - z2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
