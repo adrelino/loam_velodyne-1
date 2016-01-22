@@ -531,119 +531,118 @@ void laserMapping::processSurfPoints(int iterCount)
     }
 }
 
-void laserMapping::processCorner()
+void laserMapping::processCorner(pcl::PointXYZHSV &searchPoint, pcl::PointXYZHSV &pointOriginal)
 {
-    kdtreeCornerFromMap->nearestKSearch(pointSel, 5, pointSearchInd, pointSearchSqDis);
+    int K = 5;
+    std::vector<int> pointIdxNKNSearch(K);
+    std::vector<float> pointNKNSquaredDistance(K);
 
-    if (pointSearchSqDis[4] < 1.0)
+    if (kdtreeCornerFromMap->nearestKSearch(searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 )
     {
-        float cx = 0;
-        float cy = 0;
-        float cz = 0;
-        for (int j = 0; j < 5; j++) {
-            cx += laserCloudCornerFromMap->points[pointSearchInd[j]].x;
-            cy += laserCloudCornerFromMap->points[pointSearchInd[j]].y;
-            cz += laserCloudCornerFromMap->points[pointSearchInd[j]].z;
-        }
-        cx /= 5;
-        cy /= 5;
-        cz /= 5;
-
-        float a11 = 0;
-        float a12 = 0;
-        float a13 = 0;
-        float a22 = 0;
-        float a23 = 0;
-        float a33 = 0;
-        for (int j = 0; j < 5; j++) {
-            float ax = laserCloudCornerFromMap->points[pointSearchInd[j]].x - cx;
-            float ay = laserCloudCornerFromMap->points[pointSearchInd[j]].y - cy;
-            float az = laserCloudCornerFromMap->points[pointSearchInd[j]].z - cz;
-
-            a11 += ax * ax;
-            a12 += ax * ay;
-            a13 += ax * az;
-            a22 += ay * ay;
-            a23 += ay * az;
-            a33 += az * az;
-        }
-        a11 /= 5;
-        a12 /= 5;
-        a13 /= 5;
-        a22 /= 5;
-        a23 /= 5;
-        a33 /= 5;
-
-        matA1.at<float>(0, 0) = a11;
-        matA1.at<float>(0, 1) = a12;
-        matA1.at<float>(0, 2) = a13;
-        matA1.at<float>(1, 0) = a12;
-        matA1.at<float>(1, 1) = a22;
-        matA1.at<float>(1, 2) = a23;
-        matA1.at<float>(2, 0) = a13;
-        matA1.at<float>(2, 1) = a23;
-        matA1.at<float>(2, 2) = a33;
-
-        cv::eigen(matA1, matD1, matV1);
-
-        if (matD1.at<float>(0, 0) > 3 * matD1.at<float>(0, 1))
+        if (pointNKNSquaredDistance[4] < 1.0)
         {
-
-            float x0 = pointSel.x;
-            float y0 = pointSel.y;
-            float z0 = pointSel.z;
-            float x1 = cx + 0.1 * matV1.at<float>(0, 0);
-            float y1 = cy + 0.1 * matV1.at<float>(0, 1);
-            float z1 = cz + 0.1 * matV1.at<float>(0, 2);
-            float x2 = cx - 0.1 * matV1.at<float>(0, 0);
-            float y2 = cy - 0.1 * matV1.at<float>(0, 1);
-            float z2 = cz - 0.1 * matV1.at<float>(0, 2);
-
-            float a012 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                              * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                              + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                              * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                              + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))
-                              * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
-
-            float l12 = sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2) + (z1 - z2)*(z1 - z2));
-
-            float la = ((y1 - y2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                        + (z1 - z2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
-
-            float lb = -((x1 - x2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
-                         - (z1 - z2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
-
-            float lc = -((x1 - x2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
-                         + (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
-
-            float ld2 = a012 / l12;
-
-            pointProj = pointSel;
-            pointProj.x -= la * ld2;
-            pointProj.y -= lb * ld2;
-            pointProj.z -= lc * ld2;
-
-            float s = 2 * (1 - 8 * fabs(ld2));
-
-            coeff.x = s * la;
-            coeff.y = s * lb;
-            coeff.z = s * lc;
-            coeff.h = s * ld2;
-
-            if (s > 0.4)
+            float cx = 0;
+            float cy = 0;
+            float cz = 0;
+            for (int j = 0; j < 5; j++)
             {
-                laserCloudOri->push_back(pointOri);
-                //laserCloudSel->push_back(pointSel);
-                //laserCloudProj->push_back(pointProj);
-                //laserCloudCorr->push_back(laserCloudCornerFromMap->points[pointSearchInd[0]]);
-                //laserCloudCorr->push_back(laserCloudCornerFromMap->points[pointSearchInd[1]]);
-                //laserCloudCorr->push_back(laserCloudCornerFromMap->points[pointSearchInd[2]]);
-                //laserCloudCorr->push_back(laserCloudCornerFromMap->points[pointSearchInd[3]]);
-                //laserCloudCorr->push_back(laserCloudCornerFromMap->points[pointSearchInd[4]]);
-                coeffSel->push_back(coeff);
+                cx += laserCloudCornerFromMap->points[pointIdxNKNSearch[j]].x;
+                cy += laserCloudCornerFromMap->points[pointIdxNKNSearch[j]].y;
+                cz += laserCloudCornerFromMap->points[pointIdxNKNSearch[j]].z;
             }
+            cx /= 5;
+            cy /= 5;
+            cz /= 5;
 
+            float a11 = 0;
+            float a12 = 0;
+            float a13 = 0;
+            float a22 = 0;
+            float a23 = 0;
+            float a33 = 0;
+            for (int j = 0; j < 5; j++)
+            {
+                float ax = laserCloudCornerFromMap->points[pointIdxNKNSearch[j]].x - cx;
+                float ay = laserCloudCornerFromMap->points[pointIdxNKNSearch[j]].y - cy;
+                float az = laserCloudCornerFromMap->points[pointIdxNKNSearch[j]].z - cz;
+
+                a11 += ax * ax;
+                a12 += ax * ay;
+                a13 += ax * az;
+                a22 += ay * ay;
+                a23 += ay * az;
+                a33 += az * az;
+            }
+            a11 /= 5;
+            a12 /= 5;
+            a13 /= 5;
+            a22 /= 5;
+            a23 /= 5;
+            a33 /= 5;
+
+            matA1.at<float>(0, 0) = a11;
+            matA1.at<float>(0, 1) = a12;
+            matA1.at<float>(0, 2) = a13;
+            matA1.at<float>(1, 0) = a12;
+            matA1.at<float>(1, 1) = a22;
+            matA1.at<float>(1, 2) = a23;
+            matA1.at<float>(2, 0) = a13;
+            matA1.at<float>(2, 1) = a23;
+            matA1.at<float>(2, 2) = a33;
+
+            cv::eigen(matA1, matD1, matV1);
+
+            if (matD1.at<float>(0, 0) > 3 * matD1.at<float>(0, 1))
+            {
+
+                float x0 = searchPoint.x;
+                float y0 = searchPoint.y;
+                float z0 = searchPoint.z;
+                float x1 = cx + 0.1 * matV1.at<float>(0, 0);
+                float y1 = cy + 0.1 * matV1.at<float>(0, 1);
+                float z1 = cz + 0.1 * matV1.at<float>(0, 2);
+                float x2 = cx - 0.1 * matV1.at<float>(0, 0);
+                float y2 = cy - 0.1 * matV1.at<float>(0, 1);
+                float z2 = cz - 0.1 * matV1.at<float>(0, 2);
+
+                float a012 = sqrt(((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
+                                  * ((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
+                                  + ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
+                                  * ((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
+                                  + ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))
+                                  * ((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1)));
+
+                float l12 = sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2) + (z1 - z2)*(z1 - z2));
+
+                float la = ((y1 - y2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
+                            + (z1 - z2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))) / a012 / l12;
+
+                float lb = -((x1 - x2)*((x0 - x1)*(y0 - y2) - (x0 - x2)*(y0 - y1))
+                             - (z1 - z2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
+
+                float lc = -((x1 - x2)*((x0 - x1)*(z0 - z2) - (x0 - x2)*(z0 - z1))
+                             + (y1 - y2)*((y0 - y1)*(z0 - z2) - (y0 - y2)*(z0 - z1))) / a012 / l12;
+
+                float ld2 = a012 / l12;
+
+                pointProj = searchPoint;
+                pointProj.x -= la * ld2;
+                pointProj.y -= lb * ld2;
+                pointProj.z -= lc * ld2;
+
+                float s = 2 * (1 - 8 * fabs(ld2));
+
+                coeff.x = s * la;
+                coeff.y = s * lb;
+                coeff.z = s * lc;
+                coeff.h = s * ld2;
+
+                if (s > 0.4)
+                {
+                    laserCloudOri->push_back(pointOriginal);
+                    coeffSel->push_back(coeff);
+                }
+            }
         }
     }
 }
@@ -682,7 +681,7 @@ void laserMapping::doICP()
             break;
         }
     }
-    if (deltaR > 0.1 || deltaT > 0.1) {
+    if (deltaR > icp_R_break || deltaT > icp_T_break) {
         std::cout << "[MAPPING] Out of bound deltaR: " << deltaR << " , deltaT: " << deltaT << std::endl;
     }
 }
@@ -691,18 +690,16 @@ void laserMapping::associate(int iterCount)
 {
     for (int i = 0; i < laserCloudLast->points.size(); i++)
     {
-        if (fabs(laserCloudLast->points[i].x > 1.2) || fabs(laserCloudLast->points[i].y > 1.2) ||
-                fabs(laserCloudLast->points[i].z > 1.2))
+        if (fabs(laserCloudLast->points[i].x > 1.2) || fabs(laserCloudLast->points[i].y > 1.2) || fabs(laserCloudLast->points[i].z > 1.2))
         {
-
-            pointOri = laserCloudLast->points[i];
-            pointAssociateToMapEig(&pointOri, &pointSel);
-            if (fabs(pointOri.v) < 0.05 || fabs(pointOri.v + 1) < 0.05)
+            pcl::PointXYZHSV pointOriginal = laserCloudLast->points[i];
+            pointAssociateToMapEig(&pointOriginal, &pointSel);
+            if (fabs(pointOriginal.v) < 0.05 || fabs(pointOriginal.v + 1) < 0.05)
             {
                 processSurfPoints(iterCount);
             } else
             {
-                processCorner();
+                processCorner(pointSel,pointOriginal);
             }
 
         }

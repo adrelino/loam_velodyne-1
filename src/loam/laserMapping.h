@@ -109,7 +109,7 @@ private:
     void transformUpdate();
     void pointAssociateToMap(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po);
     void processSurfPoints(int iterCount);
-    void processCorner();
+    void processCorner(pcl::PointXYZHSV &searchPoint, pcl::PointXYZHSV &pointOriginal);
     void setTransformationMatrix(double rx, double ry, double rz, double tx, double ty, double tz);
     void doICP();
     void associate(int iterCount);
