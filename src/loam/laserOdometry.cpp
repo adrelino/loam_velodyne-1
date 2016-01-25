@@ -788,12 +788,12 @@ void laserOdometry::main_laserOdometry(sensor_msgs::PointCloud2 &pub, nav_msgs::
                                 + matX.at<float>(4, 0) * 100 * matX.at<float>(4, 0) * 100
                                 + matX.at<float>(5, 0) * 100 * matX.at<float>(5, 0) * 100);
 
-            if (deltaR < 0.005 && deltaT < 0.001) {
+            if (deltaR < 0.1 && deltaT < 0.1) {
                 ROS_WARN ("deltaR=%f < 0.005 && deltaT=%f < 0.001", deltaR, deltaT);
                 break;
             }
 
-            //ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
+            ROS_INFO ("iter: %d, deltaR: %f, deltaT: %f", iterCount, deltaR, deltaT);
         }
     }
 

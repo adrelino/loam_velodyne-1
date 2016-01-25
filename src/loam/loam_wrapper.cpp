@@ -154,15 +154,13 @@ Eigen::Matrix4d loam_wrapper::newInPCKITTI(const pcl::PointCloud<pcl::PointXYZ>:
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS(new pcl::PointCloud<pcl::PointXYZHSV>());
     scanReg->laserCloudHandlerVelo(laserCloudIn,cornerPointsSharp,cornerPointsLessSharp,surfPointsFlat,surfPointsLessFlatDS,false,false);
 
-
-
     Eigen::Matrix4d T_od = Eigen::Matrix4d::Identity();
 
     if (isInitialized)
     {
 
 
-        publishFirst(surfPointsLessFlatDSLast);
+        //publishFirst(surfPointsLessFlatDSLast);
         /// Odometry
         laserOd->laserCloudLastHandlerVelo(cornerPointsSharpLast,cornerPointsLessSharpLast,surfPointsFlatLast,surfPointsLessFlatDSLast);
 
@@ -173,7 +171,7 @@ Eigen::Matrix4d loam_wrapper::newInPCKITTI(const pcl::PointCloud<pcl::PointXYZ>:
 
         laserOd->laserCloudExtreCurHandlerVelo(laserCloudExtreCur);
 
-        publishSecond(laserCloudExtreCur);
+        //publishSecond(laserCloudExtreCur);
 
         laserOd->main_laserOdometry(pub, pubOdo);
         T_od = laserOd->T_transform;
@@ -189,21 +187,18 @@ Eigen::Matrix4d loam_wrapper::newInPCKITTI(const pcl::PointCloud<pcl::PointXYZ>:
 
 
         /// Lasser Mapping
-        //if (pubOdo.width>0)
+
         laserMap->laserOdometryHandlerVelo(T_total_od);
 
-        //if (laserOd->outLaserCloudLast2.>0)
-            laserMap->laserCloudLastHandlerVelo(laserOd->outLaserCloudLast2);
 
-        //if (pub.width>0)
+        laserMap->laserCloudLastHandlerVelo(laserOd->outLaserCloudLast2);
+
+
         laserMap->loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
         T_total_map = laserMap->T_transform;
-        publishMap(laserMap->laserCloudSurround);
+        //publishMap(laserMap->laserCloudSurround);
 
-        //    /// maintanance
-        //    transformMain->odomAftMappedHandler(odomAftMapped);
-        //    transformMain->odomBefMappedHandler(odomBefMapped);
-        //    transformMain->laserOdometryHandler(pubOdo,outlaserOdometry2);
+
 
     }
     isInitialized = true;
@@ -211,6 +206,91 @@ Eigen::Matrix4d loam_wrapper::newInPCKITTI(const pcl::PointCloud<pcl::PointXYZ>:
     *surfPointsFlatLast = *surfPointsFlat;
     *cornerPointsLessSharpLast = *cornerPointsLessSharp;
     *surfPointsLessFlatDSLast = *surfPointsLessFlatDS;
+
+    return T_od;
+
+}
+
+Eigen::Matrix4d loam_wrapper::mapTraining(const pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn, const Eigen::Matrix4d T_gt)
+{
+    /// Registration
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp(new pcl::PointCloud<pcl::PointXYZHSV>());
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp(new pcl::PointCloud<pcl::PointXYZHSV>());
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat(new pcl::PointCloud<pcl::PointXYZHSV>());
+    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS(new pcl::PointCloud<pcl::PointXYZHSV>());
+    scanReg->laserCloudHandlerVelo(laserCloudIn,cornerPointsSharp,cornerPointsLessSharp,surfPointsFlat,surfPointsLessFlatDS,false,false);
+
+    Eigen::Matrix4d T_od = Eigen::Matrix4d::Identity();
+
+    if (isInitialized)
+    {
+
+
+
+        /// Odometry
+        laserOd->laserCloudLastHandlerVelo(cornerPointsSharpLast,cornerPointsLessSharpLast,surfPointsFlatLast,surfPointsLessFlatDSLast);
+
+
+        pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudExtreCur(new pcl::PointCloud<pcl::PointXYZHSV>());
+        *laserCloudExtreCur += *cornerPointsSharp;
+        *laserCloudExtreCur += *surfPointsFlat;
+
+        laserOd->laserCloudExtreCurHandlerVelo(laserCloudExtreCur);
+
+        //publishSecond(laserCloudExtreCur);
+        pcl::PointCloud<pcl::PointXYZHSV>::Ptr outLaserCloudLast2(new pcl::PointCloud<pcl::PointXYZHSV>());
+        *outLaserCloudLast2 = *cornerPointsSharp;
+        *outLaserCloudLast2 += *cornerPointsLessSharp;
+        *outLaserCloudLast2 += *surfPointsFlat;
+        *outLaserCloudLast2 += *surfPointsLessFlatDS;
+
+
+        //laserOd->main_laserOdometry(pub, pubOdo);
+        //T_od = laserOd->T_transform;
+        T_od = T_gt.inverse();
+
+        T_od = T_od.inverse();
+        //pcl::transformPointCloud (*outLaserCloudLast2, *outLaserCloudLast2, T_od);
+        pcl::transformPointCloud (*laserCloudExtreCur, *laserCloudExtreCur, T_od);
+
+        publishFirst(surfPointsLessFlatDSLast);
+
+        publishSecond(laserCloudExtreCur);
+
+
+
+        T_total_od = T_total_od * T_od;
+
+
+
+        /// Lasser Mapping
+        laserMap->laserOdometryHandlerVelo(T_total_od);
+        laserMap->laserCloudLastHandlerVelo(outLaserCloudLast2);
+        laserMap->loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
+        T_total_map = laserMap->T_transform;
+        //publishMap(laserMap->laserCloudSurround);
+
+
+
+    }
+    else
+    {
+        pcl::PointCloud<pcl::PointXYZHSV>::Ptr outLaserCloudLast2(new pcl::PointCloud<pcl::PointXYZHSV>());
+        *outLaserCloudLast2 = *cornerPointsSharpLast;
+        *outLaserCloudLast2 += *cornerPointsLessSharpLast;
+        *outLaserCloudLast2 += *surfPointsLessFlatDSLast;
+        *outLaserCloudLast2 += *surfPointsFlatLast;
+        laserMap->laserOdometryHandlerVelo(T_od);
+        laserMap->laserCloudLastHandlerVelo(outLaserCloudLast2);
+        laserMap->loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
+    }
+    isInitialized = true;
+    *cornerPointsSharpLast = *cornerPointsSharp;
+    *surfPointsFlatLast = *surfPointsFlat;
+    *cornerPointsLessSharpLast = *cornerPointsLessSharp;
+    *surfPointsLessFlatDSLast = *surfPointsLessFlatDS;
+
+
 
     return T_od;
 

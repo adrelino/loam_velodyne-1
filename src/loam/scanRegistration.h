@@ -26,9 +26,7 @@ namespace scanRegistration
 {
 
 #define CLOUD 2100000 // cloudSortInd and cloudSortInd
-#define PICKSMALL 100
-#define LARGESTPICK 100
-#define LARGESTPICK_SEC 400
+
 class scanRegistration
 {
 public:
@@ -36,8 +34,9 @@ public:
     const double minRangeFeaturesCorners = 1.3; // originally 0.3
     const double maxRangeFeaturesFlat = 150; // originally 30
     const double minRangeFeaturesFlat = 1.3; // originally 0.3
-    const int cornerPoints = LARGESTPICK;
-    const int cornerPointsLess = LARGESTPICK_SEC;
+    const int cornerPoints = 1000;
+    const int cornerPointsLess = 4000;
+    const int surfPoins = 1000; // PICKSMALL
     scanRegistration(ros::Publisher * pubLaserCloudExtreCur, ros::Publisher * pubLaserCloudLast);
     const double PI = 3.1415926;
     const double rad2deg = 180 / PI;

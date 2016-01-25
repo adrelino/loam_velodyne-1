@@ -22,6 +22,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <Eigen/Geometry>
+#include <Eigen/Eigenvalues>
 
 
 namespace laserMapping
@@ -110,6 +111,7 @@ private:
     void pointAssociateToMap(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po);
     void processSurfPoints(int iterCount);
     void processCorner(pcl::PointXYZHSV &searchPoint, pcl::PointXYZHSV &pointOriginal);
+    void processCorner();
     void setTransformationMatrix(double rx, double ry, double rz, double tx, double ty, double tz);
     void doICP();
     void associate(int iterCount);

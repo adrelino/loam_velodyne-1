@@ -518,7 +518,8 @@ void scanRegistration::compFeatures(pcl::PointCloud<pcl::PointXYZHSV>::Ptr corne
         }
 
         int largestPickedNum = 0;
-        for (int j = ep; j >= sp; j--) {
+        for (int j = ep; j >= sp; j--)
+        {
             if (cloudNeighborPicked[cloudSortInd[j]] == 0 &&
                     laserCloud->points[cloudSortInd[j]].s > 0.1 &&
                     (fabs(laserCloud->points[cloudSortInd[j]].x) > minRangeFeaturesCorners ||
