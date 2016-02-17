@@ -17,7 +17,7 @@ loam_wrapper::loam_wrapper()
     pubGT = nh.advertise<nav_msgs::Odometry> ("/ground_truth", 5);
 
     transformMain = new transformMaintenance::transformMaintenance(&pubLaserOdometry2,&tfBroadcaster2);
-    laserMap = new laserMapping::laserMapping(&pubOdomBefMapped,&pubOdomAftMapped,&pubLaserCloudSurround);
+    laserMap = new laserMapping::laserMapping();
     scanReg = new scanRegistration::scanRegistration(&pubLaserCloudExtreCur,&pubLaserCloudLast);
     scanReg2 = new scanRegistration::scanRegistration(&pubLaserCloudExtreCur,&pubLaserCloudLast);
     laserOd = new laserOdometry::laserOdometry(&tfBroadcaster,&laserOdometryTrans,&pubLaserOdometry,&pubLaserCloudLast2);
@@ -136,7 +136,7 @@ void loam_wrapper::newInPC(sensor_msgs::PointCloud2Ptr pc)
         laserMap->laserCloudLastHandler(pub);
 
     if (pub.width>0)
-        laserMap->loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
+        laserMap->loop();
 
     // maintanance
     transformMain->odomAftMappedHandler(odomAftMapped);
@@ -194,7 +194,7 @@ Eigen::Matrix4d loam_wrapper::newInPCKITTI(const pcl::PointCloud<pcl::PointXYZ>:
         laserMap->laserCloudLastHandlerVelo(laserOd->outLaserCloudLast2);
 
 
-        laserMap->loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
+        laserMap->loop();
         T_total_map = laserMap->T_transform;
         //publishMap(laserMap->laserCloudSurround);
 
@@ -266,7 +266,7 @@ Eigen::Matrix4d loam_wrapper::mapTraining(const pcl::PointCloud<pcl::PointXYZ>::
         /// Lasser Mapping
         laserMap->laserOdometryHandlerVelo(T_total_od);
         laserMap->laserCloudLastHandlerVelo(outLaserCloudLast2);
-        laserMap->loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
+        laserMap->loop();
         T_total_map = laserMap->T_transform;
         //publishMap(laserMap->laserCloudSurround);
 
@@ -282,7 +282,7 @@ Eigen::Matrix4d loam_wrapper::mapTraining(const pcl::PointCloud<pcl::PointXYZ>::
         *outLaserCloudLast2 += *surfPointsFlatLast;
         laserMap->laserOdometryHandlerVelo(T_od);
         laserMap->laserCloudLastHandlerVelo(outLaserCloudLast2);
-        laserMap->loop(laser_cloud_surround, odomBefMapped, odomAftMapped);
+        laserMap->loop();
     }
     isInitialized = true;
     *cornerPointsSharpLast = *cornerPointsSharp;

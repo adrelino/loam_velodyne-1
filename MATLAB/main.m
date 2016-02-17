@@ -272,11 +272,6 @@ r6 = d_a_x(3) * (X_i(2) - X_j(2)) + d_a_y(3) * (X_j(1) - X_i(1));
 r = [r1 r2 r3 r4 r5 r6];
 end
 %%
-function R = getR(phi,theta,psi)
-R = [cos(phi)*cos(theta) cos(phi)*sin(theta)*sin(psi)-sin(phi)*cos(psi) cos(phi)*sin(theta)*cos(psi)+sin(phi)*sin(psi);
-    sin(phi)*cos(theta) sin(phi)*sin(theta)*sin(psi)+cos(phi)*cos(psi) sin(phi)*sin(theta)*cos(psi)-cos(phi)*sin(psi);
-    -sin(theta) cos(theta)*sin(psi) cos(theta)*cos(psi)];
-end
 function J = getJ(theta,X,X_i,X_j)
 n = (X_i - X_j)' * (X_i - X_j);
 R = getR(theta(4),theta(5),theta(6));

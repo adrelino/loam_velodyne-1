@@ -8,7 +8,7 @@
 #include <boost/foreach.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <sensor_msgs/image_encodings.h>
-#include "cv_bridge/cv_bridge.h"
+//#include "cv_bridge/cv_bridge.h"
 #define foreach BOOST_FOREACH
 
 #include "loam/loam_wrapper.h"
@@ -18,6 +18,8 @@
 #include "loam/laserOdometry.h"
 
 #include "KITTI_util/KITTI.h"
+
+#include "KITTI_util/toMATLAB.h"
 
 struct data
 {
@@ -29,11 +31,13 @@ struct data
 int main( int argc, char** argv )
 {
     ros::init(argc, argv, "KITTI");
-    int offset = 90;
-    int maxId = 130;
+    int offset = 0;
+    int maxId = 4500;
     KITTI kitti(0,maxId,offset);
     loam_wrapper loam;
 
+    toMATLAB temp;
+    temp.write();
 
     std::vector<Eigen::Matrix4d> T_result;
     std::vector<Eigen::Matrix4d> T_result_delta;
@@ -58,76 +62,23 @@ int main( int argc, char** argv )
 
         T_all_od = T_offset*loam.T_total_od;
         T_all_map = T_offset*loam.T_total_map;
-        //T_diff_od_map = kitti.computeError(T_all_od,T_all_map);
+        T_diff_od_map = kitti.poseDelta(T_all_od,T_all_map);
         std::cout << "[INFO]: i=" << i << std::endl;
         std::cout << "T_back:" << T_back << std::endl;
         std::cout << "T_all_od:" << T_all_od << std::endl;
         std::cout << "T_all_map:" << T_all_map << std::endl;
         std::cout << "T_gt:" << kitti.getGroundTruthByID(i) << std::endl;
-        //std::cout << "T_diff_od_map:" << T_diff_od_map << std::endl;
+        std::cout << "T_diff_od_map:" << T_diff_od_map << std::endl;
 
         T_result.push_back(T_all_map);
 
-        //std::vector<veloPoint> velpoints2;
-        //kitti.getOneVel(velpoints2,i);
-        //pcl::PointCloud<pcl::PointXYZHSV>::Ptr temp(new pcl::PointCloud<pcl::PointXYZHSV>());
-        //Eigen::Matrix4d T_in = T.inverse();
-        //pcl::transformPointCloud (*(loam.cornerPointsSharpLast), *temp, T_in);
-        //kitti.dispLidarInImage(temp,i);
 
-        //sleep(5);
     }
 
+    kitti.plotDeltaPoses(T_result,0);
     kitti.eval(T_result);
     kitti.writeResult(T_result_delta);
 
-
-    //    Eigen::Matrix3Xd P0(3,4);
-    //    P0 = getP0();
-    //    Eigen::Matrix3Xd P2(3,4);
-    //    P2 = getP2();
-    //    Eigen::Matrix3Xd P_rect_02(3,4);
-    //    P_rect_02 = getP_rect_02();
-    //    Eigen::Matrix3f K=getK();
-
-
-
-    //    int num = 15;
-
-    //    std::vector<cv::Mat*> images_color;
-    //    std::vector<std::string> files;
-    //    getFiles(path_to_images_color, files);
-    //    getImagesColor(files, images_color,num);
-
-    //    std::vector<cv::Mat*> images_gray;
-    //    files.clear();
-    //    getFiles(path_to_images_gray, files);
-    //    getImages(files, images_gray,num);
-
-
-
-    //    std::vector<std::vector<veloPoint>> velpoints;
-    //    std::vector<std::string> velo_files;
-    //    getFiles(path_to_velo, velo_files);
-    //    getVel(velo_files,velpoints,num);
-
-    //    writeDepthToFile(velpoints[0]);
-
-
-    //    std::vector<SE3> poses;
-    //    std::vector<Eigen::Matrix3d> Rs;
-    //    std::vector<Eigen::Vector3d> ts;
-    //    //setCameraPoses(pathPoses,poses,Rs,ts);
-
-    //    Eigen::Matrix4d gt_pose,gt_pose_tb;
-
-    //    Eigen::Matrix4d gt_pose_cam,gt_pose_cam_tb;
-
-    //    Eigen::Matrix4d T_velo_to_cam = get_T_velo_to_cam();
-    //    Eigen::Matrix4d T_02 = getTrans02();
-    //    Eigen::Matrix4d T_velo_02 = T_02*T_velo_to_cam;
-    //    Eigen::Matrix4d imu_to_velo_T;
-    //    imu_to_velo_T = get_imu_to_velo_T();
 
 
 

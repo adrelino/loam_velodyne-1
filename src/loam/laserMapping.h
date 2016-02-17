@@ -24,17 +24,29 @@
 #include <Eigen/Geometry>
 #include <Eigen/Eigenvalues>
 
+#include "../KITTI_util/toMATLAB.h"
+
 
 namespace laserMapping
 {
 
+
+
 class laserMapping
 {
 public:
+    laserMapping();
+
+    edge_data observing_field;
+    ObservingData observingData;
+
     const float icp_R_break = 0.1;
     const float icp_T_break = 0.1;
     const int maxIteration = 50;
-    laserMapping(ros::Publisher * pubOdomBefMapped, ros::Publisher * pubOdomAftMapped, ros::Publisher * pubLaserCloudSurround);
+
+    const float leafSizeCorner = 0.05f;
+    const float leafSizeSurf = 0.1f;
+
     void laserCloudLastHandlerVelo(const pcl::PointCloud<pcl::PointXYZHSV>::Ptr inLaserCloudLast);
     void laserOdometryHandlerVelo(const Eigen::Matrix4d T);
 
@@ -51,25 +63,18 @@ public:
     const int laserCloudCenWidth = 1;
     const int laserCloudCenHeight = 1;
     const int laserCloudCenDepth = 1;
-    static const int laserCloudWidth = 15;
-    static const int laserCloudHeight = 15;
-    static const int laserCloudDepth = 15;
+    static const int laserCloudWidth = 150;
+    static const int laserCloudHeight = 150;
+    static const int laserCloudDepth = 150;
     static const int laserCloudNum = laserCloudWidth * laserCloudHeight * laserCloudDepth;
 
     int laserCloudValidInd[27];
     int laserCloudSurroundInd[27];
 
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCorner;
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudSurf;
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCorner2;
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudSurf2;
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudLast;
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudOri;
 
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr coeffSel;//(new pcl::PointCloud<pcl::PointXYZHSV>());
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudFromMap;//(new pcl::PointCloud<pcl::PointXYZHSV>());
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCornerFromMap;//(new pcl::PointCloud<pcl::PointXYZHSV>());
-    pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudSurfFromMap;//(new pcl::PointCloud<pcl::PointXYZHSV>());
     pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudSurround;//(new pcl::PointCloud<pcl::PointXYZI>());
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudArray[laserCloudNum];
 
@@ -97,29 +102,28 @@ public:
 
     bool init = false;
 
-    ros::Publisher * pubOdomBefMapped;
-    ros::Publisher * pubOdomAftMapped;
-    ros::Publisher * pubLaserCloudSurround;
-
     void laserCloudLastHandler(const sensor_msgs::PointCloud2 &laserCloudLast2);
     void laserOdometryHandler(const nav_msgs::Odometry &laserOdometry);
-    void loop(sensor_msgs::PointCloud2 &laser_cloud_surround, nav_msgs::Odometry & odomBefMapped,nav_msgs::Odometry & odomAftMapped);
+    void loop();
     Eigen::Matrix4d T_transform;
 private:
     void transformAssociateToMap();
     void transformUpdate();
     void pointAssociateToMap(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po);
-    void processSurfPoints(int iterCount);
-    void processCorner(pcl::PointXYZHSV &searchPoint, pcl::PointXYZHSV &pointOriginal);
-    void processCorner();
+    void processSurfPoints(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudSurfFromMap, int iterCount);
+    void processCorner(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCornerFromMap, pcl::PointXYZHSV &searchPoint, pcl::PointXYZHSV &pointOriginal);
+    void processCorner(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCornerFromMap);
     void setTransformationMatrix(double rx, double ry, double rz, double tx, double ty, double tz);
-    void doICP();
-    void associate(int iterCount);
+    void doICP(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudSurfFromMap, pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudCornerFromMap);
+    void associate(pcl::PointCloud<pcl::PointXYZHSV>::Ptr laserCloudSurfFromMap, int iterCount);
     void solveCV();
     void solveEigen(float &deltaR, float &deltaT);
     void pointAssociateToMapEig(pcl::PointXYZHSV *pi, pcl::PointXYZHSV *po);
-    void extractFeatures();
+    void extractFeatures(pcl::PointCloud<pcl::PointXYZHSV>::Ptr corners, pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfs, pcl::PointCloud<pcl::PointXYZHSV>::Ptr input);
     void createLaserCloudSurround(int laserCloudSurroundNum);
     void downSampleCloud(pcl::PointCloud<pcl::PointXYZHSV>::Ptr inPC, pcl::PointCloud<pcl::PointXYZHSV>::Ptr outPC, float leafSize);
+    void storePointCloud(pcl::PointCloud<pcl::PointXYZHSV>::Ptr input);
+    void downsampleLaserCloudArray(int laserCloudValidNum);
+    void downsampleInputCloud();
 };
 }
