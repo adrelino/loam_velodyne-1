@@ -1,70 +1,24 @@
-function r = main_Plane()
+function r = testPlane()
 
-% generate some points
-alpha_x = 0.3*pi;
-alpha_y = 0.1*pi;
-alpha_z = 0.4*pi;
-R = getR(alpha_x,0,0)
-t = [1;2;1];
+A = [0;0;1];
+B = [0;1;0];
+C = [1;0;0];
 
-c_min = 0;
-for i=1:1600
-    m = rand(3,1);
-    v = rand(3,1)*100;
-    %
-    points{i} = [(3 * m + v)  (0 * m + v) (-3 * m + v)];
-    v(1,1) = rand;
-    points2{i} = rand(3,1);
-    c{i} = mean([points{i}(:,1) points{i}(:,3) points2{i}(:,1)],2);
-    
-    c_min = c_min + getPlaneDistance(c{i},points{i}(:,1),points{i}(:,3),points2{i}(:,1));
-    plane{i} = R * c{i} + t;
-end
-c_min
+for i = 1 : 100
+P = [0.01;0.01;0.01]*i
 
-theta = [0;0;0;0;0;0];
-%theta(1:3) = -t(1:3)*0.1;
-lambda = 0.000000001;
-plane_temp = plane;
-for j = 1:100
-    R_temp = getR(theta(4),theta(5),theta(6));
-    t_temp = [theta(1);theta(2);theta(3)];
-    for i = 1:length(plane)
-        plane_temp{i} = R_temp*plane{i} +t_temp;
-    end
-    
-    
-    for i = 1:length(plane)
-        X = plane{i};
-        X_i = points{i}(:,1);
-        X_j = points{i}(:,3);
-        X_l = points2{i}(:,1);
-        J(i,:) = getJ(theta,X,X_i,X_j,X_l);
-        %J(i,:) = getJPlane(theta(1),theta(2),theta(3),theta(4),theta(5),theta(6),X(1),X(2),X(3),X_i(1),X_i(2),X_i(3),X_j(1),X_j(2),X_j(3),X_l(1),X_l(2),X_l(3));
-        d(i,1) = getPlaneDistance(plane_temp{i},X_i,X_j,X_l);
-    end
-    [sum(d) theta']
-    up = pinv(J'*J+lambda*diag(diag(J'*J))) * J' * d.^2;
-    %up = pinv(J) * d.^2;
-    theta = theta - up;
-    
+d(i) = getPlaneDistance(P,A,B,C)^2;
+%P2 = 0.57/sqrt(3)*ones(3,1);
+
 end
 
-theta;
-R_temp = getR(theta(4),theta(5),theta(6));
-t_temp = [theta(1);theta(2);theta(3)];
--pinv(R_temp)*t_temp
-
-[t;alpha_x;alpha_y;alpha_z];
-
-
-for i=1:length(plane)
-    plot3(c{i}(1,1),c{i}(2,1),c{i}(3,1),'rX');
-    hold on;
-    plot3(plane_temp{i}(1,1),plane_temp{i}(2,1),plane_temp{i}(3,1),'bO');
-end
-pause(100);
-
+% for i=1:20
+% getJ([-i;-i;-i*0.5;0;0;0],mean([A B C],2),A,B,C)
+% P = mean([A B C],2)
+ P = zeros(3,1)
+ getJPlane(0,0,0,0,0,0,P(1),P(2),P(3),A(1),A(2),A(3),B(1),B(2),B(3),C(1),C(2),C(3))
+% end
+plot((1:100)*0.01,d)
 end
 
 function r = w_11(phi,theta,psi)
@@ -217,8 +171,7 @@ d_2_z = d(3)^2;
 n = d_2_x + d_2_y + d_2_z;
 R = getR(theta(4),theta(5),theta(6));
 t = [theta(1);theta(2);theta(3)];
-m = mean([X_i,X_j,X_l],2);
-a = (R*X+t-m);
+a = (R*X+t-X_i);
 a_x = a(1);
 a_y = a(2);
 a_z = a(3);
@@ -230,4 +183,3 @@ J = ( 2 * a_x * [1 0 0 a_x_theta(theta(4),theta(5),theta(6),X)'] * d_2_x ...
     + 2 * a_y * [0 1 0 a_y_theta(theta(4),theta(5),theta(6),X)'] * d_2_y ...
     + 2 * a_z * [0 0 1 a_z_theta(theta(4),theta(5),theta(6),X)'] * d_2_z) / n;
 end
-

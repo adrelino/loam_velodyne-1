@@ -34,6 +34,8 @@ set(CMAKE_PREFIX_PATH ${TMP_PREFIX_PATH})
 unset(OpenCV_CONFIG_PATH CACHE)
 unset(OpenCV_DIR CACHE)
 
+find_package(Ceres 1.2.3 REQUIRED)
+include_directories(${CERES_INCLUDE_DIRS})
 find_package(PCL 1.7 REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
@@ -62,6 +64,7 @@ ${PROJECT_SOURCE_DIR}/src/loam/laserOdometry.cpp
 ${PROJECT_SOURCE_DIR}/src/loam/laserMapping.cpp
 ${PROJECT_SOURCE_DIR}/src/loam/transformMaintenance.cpp
 ${PROJECT_SOURCE_DIR}/src/loam/loam_wrapper.cpp
+${PROJECT_SOURCE_DIR}/src/loam/icp.cpp
 )
 
 set(util_SOURCE_FILES
@@ -94,9 +97,14 @@ target_link_libraries(loam ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 #rosbuild_add_executable(main_loam src/main_loam.cpp)
 #target_link_libraries(main_loam loam ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
+#rosbuild_add_executable(main_KITTI ${catkin_LIBRARIES} src/main_KITTI.cpp)
+#target_link_libraries(main_KITTI ${catkin_LIBRARIES} ${OpenCV_LIBS} loam ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
-rosbuild_add_executable(main_KITTI ${catkin_LIBRARIES} src/main_KITTI.cpp)
-target_link_libraries(main_KITTI ${catkin_LIBRARIES} ${OpenCV_LIBS} loam ${PCL_LIBRARIES})
+rosbuild_add_executable(main_testICP ${catkin_LIBRARIES} src/main_testICP.cpp)
+target_link_libraries(main_testICP ${catkin_LIBRARIES} ${OpenCV_LIBS} loam ${PCL_LIBRARIES} ${CERES_LIBRARIES})
+
+#rosbuild_add_executable(main_ceres ${catkin_LIBRARIES} src/main_ceres.cpp)
+#target_link_libraries(main_ceres ${catkin_LIBRARIES} ${OpenCV_LIBS} loam ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 #rosbuild_add_executable(main_eval src/util/evaluate_odometry.cpp)
 #target_link_libraries(main_eval loam ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
