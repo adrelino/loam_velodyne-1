@@ -36,8 +36,9 @@ class ICP
 {
 public:
     ICP();
+    void reset();
     void associate();
-    void nonlinearLVM();
+    Eigen::MatrixXf nonlinearLVM(float lambda);
     void testCovariance();
     void testLVM();
     bool associatePointToPlane(pcl::PointXYZ &searchPoint, pcl::PointXYZ &normal, pcl::PointXYZ &point);
@@ -46,9 +47,27 @@ public:
     void computeMean(pcl::PointCloud<pcl::PointXYZ>::Ptr pc, std::vector<int> & pointIdxNKNSearch, pcl::PointXYZ & mean);
     void computeCovariance(pcl::PointCloud<pcl::PointXYZ>::Ptr pc, std::vector<int> & pointIdxNKNSearch, pcl::PointXYZ mean, Eigen::Matrix3f & covariance);
     void doICP();
-    void setKdTree(pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudSurfFromMap)
+
+    void setInputCloud(pcl::PointCloud<pcl::PointXYZHSV>::Ptr in)
     {
-        kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMap);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr in_new(new pcl::PointCloud<pcl::PointXYZ>);
+        for (int i=0;i<in->points.size();i++)
+        {
+            if (fabs(in->points[i].v) < 0.05 || fabs(in->points[i].v + 1) < 0.05)
+            in_new->points.push_back(pcl::PointXYZ(in->points[i].x,in->points[i].y,in->points[i].z));
+        }
+        setInputCloud(in_new);
+    }
+
+    void setSurfaceMap(pcl::PointCloud<pcl::PointXYZHSV>::Ptr in)
+    {
+        pcl::PointCloud<pcl::PointXYZ>::Ptr in_new(new pcl::PointCloud<pcl::PointXYZ>);
+        for (int i=0;i<in->points.size();i++)
+        {
+            if (fabs(in->points[i].v) < 0.05 || fabs(in->points[i].v + 1) < 0.05)
+            in_new->points.push_back(pcl::PointXYZ(in->points[i].x,in->points[i].y,in->points[i].z));
+        }
+        setSurfaceMap(in_new);
     }
 
     void setInputCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr in)
@@ -60,6 +79,11 @@ public:
     {
         *surfaceMap = *in;
         setKdTree(surfaceMap);
+    }
+
+    void setKdTree(pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudSurfFromMap)
+    {
+        kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMap);
     }
 
     Eigen::Matrix3f getRotationMatrix(float phi, float theta, float psi)
@@ -83,10 +107,60 @@ public:
         return T;
     }
 
-private:
-    int maxIteration = 20;
-    int K = 15;
+    Eigen::Matrix4d getTransformationMatrixd(float * temp)
+    {
+        Eigen::Matrix4d T;
+        Eigen::Matrix3f R;
+        R = getRotationMatrix(temp[3],temp[4],temp[5]);
+        T << R(0,0), R(0,1), R(0,2), temp[0],
+             R(1,0), R(1,1), R(1,2), temp[1],
+             R(2,0), R(2,1), R(2,2), temp[2],
+             0, 0, 0, 1;
+        return T;
+    }
+
+    Eigen::Matrix4d getBestResult()
+    {
+        int minIdx = getSumdMinimum();
+        std::cout << "I'm using sumd[" << minIdx << "]=" << sumd[minIdx] << std::endl;
+        return getTransformationMatrixd(transformArray[minIdx]);
+    }
+
+    int getSumdMinimum()
+    {
+        float min = 1000000;
+        int minIdx = 0;
+        for (int i=0;i<sumd.size();i++)
+        {
+            if (sumd[i]<min)
+            {
+                min = sumd[i];
+                minIdx = i;
+            }
+
+        }
+        return minIdx;
+    }
+
     float transformation[6];
+
+private:
+    bool checkDirection(pcl::PointXYZ &normal,pcl::PointXYZ &normalPosition);
+    int maxIteration = 30;
+    int K = 5;
+
+    int x_direction = 0;
+    int y_direction = 0;
+    int z_direction = 0;
+
+    float lambda_0 = .001f;
+    float nu = 2.1f;
+    float eig_values_larger = 130.0f;
+    float PI = 3.14159f;
+
+    std::vector<float> sumd;
+    std::vector<float*> transformArray;
+    std::vector<int> filtered_idx;
 
     // HSV
     pcl::PointCloud<pcl::PointXYZ>::Ptr inputCloud;
@@ -97,7 +171,22 @@ private:
     std::vector<int> pointToPlaneIdx;
     pcl::PointCloud<pcl::PointXYZ>::Ptr surfaceNormals;
     pcl::PointCloud<pcl::PointXYZ>::Ptr surfaceNormalsPosition;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr surfaceNormalsX;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr surfaceNormalsY;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr surfaceNormalsZ;
+
     pcl::PointCloud<pcl::PointXYZ>::Ptr transformedInputCloud;
+
+
+
+    ros::NodeHandle nh;
+    ros::Publisher pubInput;
+    ros::Publisher pubSurfaceMap;
+    ros::Publisher pubSurfaceNormalsPosition;
+    ros::Publisher pubSurfaceNormalsX;
+    ros::Publisher pubSurfaceNormalsY;
+    ros::Publisher pubSurfaceNormalsZ;
+
 
     float w_11(float phi, float theta, float psi)
     {
@@ -156,7 +245,7 @@ private:
 
     float w_11_psi(float phi,float theta,float psi)
     {
-        return 0;
+        return 0.0f;
     }
 
     float w_12_phi(float phi,float theta,float psi)

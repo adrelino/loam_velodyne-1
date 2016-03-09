@@ -1,9 +1,22 @@
 #include "icp.h"
 ICP::ICP()
 {
-    for(int i=0;i<6;i++)
-        transformation[i] = 0.0f;
+    reset();
+    pubInput = nh.advertise<sensor_msgs::PointCloud2>("/Input", 1);
+    pubSurfaceMap = nh.advertise<sensor_msgs::PointCloud2>("/SurfaceMap", 1);
+    pubSurfaceNormalsPosition = nh.advertise<sensor_msgs::PointCloud2>("/SurfaceNormalsPosition", 1);
+    pubSurfaceNormalsX = nh.advertise<sensor_msgs::PointCloud2>("/SurfaceNormalsX", 1);
+    pubSurfaceNormalsY = nh.advertise<sensor_msgs::PointCloud2>("/SurfaceNormalsY", 1);
+    pubSurfaceNormalsZ = nh.advertise<sensor_msgs::PointCloud2>("/SurfaceNormalsZ", 1);
 
+}
+
+void ICP::reset()
+{
+    for(int i=0;i<3;i++)
+        transformation[i] = 0.0f;
+    for(int i=3;i<6;i++)
+        transformation[i] = 2.0f * PI;
     inputCloud.reset(new pcl::PointCloud<pcl::PointXYZ>());
 
     surfaceMap.reset(new pcl::PointCloud<pcl::PointXYZ>());
@@ -12,6 +25,10 @@ ICP::ICP()
     surfaceNormals.reset(new pcl::PointCloud<pcl::PointXYZ>());
     surfaceNormalsPosition.reset(new pcl::PointCloud<pcl::PointXYZ>());
     transformedInputCloud.reset(new pcl::PointCloud<pcl::PointXYZ>());
+
+    surfaceNormalsX.reset(new pcl::PointCloud<pcl::PointXYZ>());
+    surfaceNormalsY.reset(new pcl::PointCloud<pcl::PointXYZ>());
+    surfaceNormalsZ.reset(new pcl::PointCloud<pcl::PointXYZ>());
 }
 
 
@@ -25,57 +42,100 @@ bool ICP::associatePointToPlane(pcl::PointXYZ &searchPoint, pcl::PointXYZ &norma
     if (!(kdtreeSurfFromMap->nearestKSearch(searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0))
         return false;
 
-    if (pointNKNSquaredDistance[K-1] > 1.0)
-        return false;
+    if (fabs(searchPoint.z) < 20.0f)
+    {
+        if (pointNKNSquaredDistance[K-1] > 0.5f)
+            return false;
+    }
+    else
+    {
+        if (pointNKNSquaredDistance[K-1] > 0.5f)
+            return false;
+    }
 
     computeMean(surfaceMap, pointIdxNKNSearch, normalPosition);
 
     Eigen::Matrix3f covariance;
     computeCovariance(surfaceMap, pointIdxNKNSearch, normalPosition, covariance);
+    //normalPosition = surfaceMap->points[pointIdxNKNSearch[0]];
 
     Eigen::EigenSolver<Eigen::Matrix3f> es;
     es.compute(covariance,true);
     Eigen::Matrix<std::complex<float>, 3, 1>  eig = es.eigenvalues();
     Eigen::Matrix<std::complex<float>, 3, 3> eig_vec = es.eigenvectors();
 
-
     // Two eigenvalue should be significantly larger
-    //std::cout << "eig(0, 0).real()"  > 3 * eig(2, 0).real() && eig(1, 0).real() > 3 * eig(2, 0).real()"
-    if (eig(0, 0).real() > 3 * eig(2, 0).real() && eig(1, 0).real() > 3 * eig(2, 0).real() && fabs(eig(0, 0).real()-eig(1, 0).real() ) < 0.3)
+    if (eig(0, 0).real() > eig_values_larger * eig(2, 0).real() && eig(1, 0).real() > eig_values_larger * eig(2, 0).real() && fabs(eig(0, 0).real()-eig(1, 0).real() ) < 0.1)
     {
         normal.x = eig_vec(0, 2).real();
         normal.y = eig_vec(1, 2).real();
         normal.z = eig_vec(2, 2).real();
-        //std::cout << "searchPoint:" << searchPoint << std::endl;
-        //std::cout << "cov:" << covariance << std::endl;
-        //std::cout << "lambda1=" << eig(0, 0).real() << ", lambda2=" << eig(1, 0).real() << ", lambda3=" << eig(2, 0).real() << std::endl;
-        //std::cout << "eig" << eig << std::endl;
-        //std::cout << "covariance=" << covariance << std::endl;
-        //std::cout << "eig_vec=" << eig_vec << std::endl;
-        //std::cout << "normal.x=" << normal.x << "normal.y=" << normal.y << "normal.z=" << normal.z << std::endl;
-        return true;
+
+        return checkDirection(normal,normalPosition);
     }
-    else if (eig(2, 0).real() > 3 * eig(0, 0).real() && eig(1, 0).real() > 3 * eig(0, 0).real() && fabs(eig(2, 0).real()-eig(1, 0).real() ) < 0.3)
+    else if (eig(2, 0).real() > eig_values_larger * eig(0, 0).real() && eig(1, 0).real() > eig_values_larger * eig(0, 0).real() && fabs(eig(2, 0).real()-eig(1, 0).real() ) < 0.1)
     {
         normal.x = eig_vec(0, 0).real();
         normal.y = eig_vec(1, 0).real();
         normal.z = eig_vec(2, 0).real();
-        return true;
+
+        return checkDirection(normal,normalPosition);
     }
-    else if (eig(2, 0).real() > 3 * eig(1, 0).real() && eig(0, 0).real() > 3 * eig(1, 0).real() && fabs(eig(2, 0).real()-eig(0, 0).real() ) < 0.3)
+    else if (eig(2, 0).real() > eig_values_larger * eig(1, 0).real() && eig(0, 0).real() > eig_values_larger * eig(1, 0).real() && fabs(eig(2, 0).real()-eig(0, 0).real() ) < 0.1)
     {
         normal.x = eig_vec(0, 1).real();
         normal.y = eig_vec(1, 1).real();
         normal.z = eig_vec(2, 1).real();
-        return true;
+
+        return checkDirection(normal,normalPosition);
     }
     else
     {
-        //std::cout << "eig:" << eig << std::endl;
         return false;
     }
+}
 
-
+bool ICP::checkDirection(pcl::PointXYZ &normal,pcl::PointXYZ &normalPosition)
+{
+    if (fabs(normal.x)>fabs(normal.y) && fabs(normal.x)> fabs(normal.z))
+    {
+        x_direction++;
+        if (x_direction < 5000)
+        {
+            surfaceNormalsX->points.push_back(normalPosition);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else if (fabs(normal.y)>fabs(normal.x) && fabs(normal.y)> fabs(normal.z))
+    {
+        y_direction++;
+        if (y_direction < 5000)
+        {
+            surfaceNormalsY->points.push_back(normalPosition);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else if (fabs(normal.z)>fabs(normal.y) && fabs(normal.z)> fabs(normal.x))
+    {
+        z_direction++;
+        if (z_direction < 5000)
+        {
+            surfaceNormalsZ->points.push_back(normalPosition);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
 }
 
 void ICP::computeMean(pcl::PointCloud<pcl::PointXYZ>::Ptr pc, std::vector<int> & pointIdxNKNSearch, pcl::PointXYZ & mean)
@@ -93,6 +153,401 @@ void ICP::computeMean(pcl::PointCloud<pcl::PointXYZ>::Ptr pc, std::vector<int> &
     mean.x/=K;
     mean.y/=K;
     mean.z/=K;
+}
+
+void ICP::computeCovariance(pcl::PointCloud<pcl::PointXYZ>::Ptr pc, std::vector<int> & pointIdxNKNSearch, pcl::PointXYZ mean, Eigen::Matrix3f & covariance)
+{
+    float a11 = 0;
+    float a12 = 0;
+    float a13 = 0;
+    float a22 = 0;
+    float a23 = 0;
+    float a33 = 0;
+    int K = pointIdxNKNSearch.size();
+    for (int i = 0; i < K; i++)
+    {
+        float ax = pc->points[pointIdxNKNSearch[i]].x - mean.x;
+        float ay = pc->points[pointIdxNKNSearch[i]].y - mean.y;
+        float az = pc->points[pointIdxNKNSearch[i]].z - mean.z;
+
+        a11 += ax * ax;
+        a12 += ax * ay;
+        a13 += ax * az;
+        a22 += ay * ay;
+        a23 += ay * az;
+        a33 += az * az;
+    }
+
+    covariance << a11, a12, a13, a12, a22, a23, a13, a23, a33;
+    covariance = covariance / K;
+
+}
+
+void ICP::doICP()
+{
+    sumd.resize(0);
+    transformArray.resize(0);
+    float lambda = lambda_0;
+    Eigen::MatrixXf inc(6,1);
+    float nu_sum = 1.0f;
+
+
+    sensor_msgs::PointCloud2 pc4;
+    pcl::toROSMsg(*surfaceMap, pc4);
+    pc4.header.stamp = ros::Time().now();
+    pc4.header.frame_id = "/world";
+    pubSurfaceMap.publish(pc4);
+
+    std::cout << "transformation: " << transformation[0] << " " << transformation[1] << " " << transformation[2]
+              << " " << transformation[3] << " " << transformation[4] << " " << transformation[5] << std::endl;
+
+    for (int iter= 0; iter < maxIteration; iter++)
+    {
+        //std::cout << "[Mapping] iter: " << iter << " lambda: " << lambda <<std::endl;
+
+        associate();
+
+        inc = nonlinearLVM(lambda);
+
+
+        if (iter>0)
+        {
+            // If result isn't improving
+            //            if (sumd.back()>sumd[sumd.size()-2])
+            //            {
+            //                // Increase lambda and use result from before
+            //                lambda = lambda * nu;
+
+
+
+            //            }
+            //            else // if result improves decrease lambda
+            //            {
+            //                lambda = lambda / nu;
+            //            }
+        }
+
+
+        for (int i=0;i<6;i++)
+            transformation[i] = transformation[i] - inc(i,0);
+
+
+    }
+
+    std::cout << "transformation: " << transformation[0] << " " << transformation[1] << " " << transformation[2]
+              << " " << transformation[3] << " " << transformation[4] << " " << transformation[5] << std::endl;
+
+
+    int minIdx = getSumdMinimum();
+    std::cout << "minimum sumd is sumd[" << minIdx<< "]=" << sumd[minIdx] << std::endl;
+
+
+
+    //    float * startTransformation = new float[6];
+    //    for (int i=0;i<6;i++)
+    //        startTransformation[i] = transformation[i];
+    //    for (int j=4;j<5;j++)
+    //    {
+    //        for (int i=-20;i<40;i++)
+    //        {
+    //            if (j<3)
+    //            {
+    //                transformation[j] = transformation[j] + 0.01f*(float)i;
+    //            }
+    //            else
+    //            {
+    //                float new_value = transformation[j] + 0.001f*(float)i;
+    //                if (new_value < 0.0f)
+    //                    transformation[j] = 2 * 3.14159f + 0.001f*(float)i;
+    //                else if (new_value > 2 * 3.14159f)
+    //                    transformation[j] = 0.0f + 0.001f*(float)i;
+    //                else
+    //                    transformation[j] = transformation[j] + 0.001f*(float)i;
+    //            }
+    //            std::cout << "testing transformation[" << j << "]=" << transformation[j] << std::endl;
+    //            associate();
+
+    //            int amount = pointToPlaneIdx.size();
+
+    //            if (amount > 500)
+    //            {
+
+
+    //                Eigen::MatrixXf J(amount,6);
+    //                Eigen::MatrixXf d(amount,1);
+
+    //                float sum_d=0;
+    //                for (int i=0; i < amount; i++)
+    //                {
+    //                    Eigen::MatrixXf J_temp(1,6);
+    //                    J_temp = getPlaneJacobi(transformation, surfaceNormals->points[i], surfaceNormalsPosition->points[i], inputCloud->points[pointToPlaneIdx[i]]);
+    //                    J(i,0) = J_temp(0);
+    //                    J(i,1) = J_temp(1);
+    //                    J(i,2) = J_temp(2);
+    //                    J(i,3) = J_temp(3);
+    //                    J(i,4) = J_temp(4);
+    //                    J(i,5) = J_temp(5);
+    //                    d(i,0) = getPoint2PlaneDistance(surfaceNormals->points[i], surfaceNormalsPosition->points[i], transformedInputCloud->points[i]);
+    //                    d(i,0) = d(i,0) * d(i,0);
+    //                    sum_d += d(i,0);
+    //                }
+
+    //                //std::cout << "J:" << J << std::endl;
+
+    //                float * temp = new float[6];
+    //                for (int i=0;i<6;i++)
+    //                    temp[i] = transformation[i];
+    //                transformArray.push_back(temp);
+
+    //                sumd.push_back(sum_d / (float)amount);
+
+    //                std::cout << "sum_d=" << sum_d << " mean=" << sum_d / (float)amount << std::endl;
+    //            }
+
+    //        }
+    //        // reset
+    //        for (int i=0;i<6;i++)
+    //            transformation[i] = startTransformation[i];
+    //    }
+
+
+
+}
+
+void ICP::associate()
+{
+    // Transform input point cloud according to its current estimate
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformedCloud(new pcl::PointCloud<pcl::PointXYZ> ());
+    Eigen::Matrix4f T = getTransformationMatrix();
+    //std::cout << "T:" << T << std::endl;
+    pcl::transformPointCloud (*inputCloud, *transformedCloud, T);
+
+    pointToPlaneIdx.resize(0);
+    surfaceNormals->points.resize(0);
+    surfaceNormalsPosition->points.resize(0);
+    transformedInputCloud->points.resize(0);
+    x_direction = 0;
+    y_direction = 0;
+    z_direction = 0;
+    surfaceNormalsX->points.resize(0);
+    surfaceNormalsY->points.resize(0);
+    surfaceNormalsZ->points.resize(0);
+    for (int i = 0; i < transformedCloud->points.size() && pointToPlaneIdx.size()<200000; i+=5)
+    {
+        if (fabs(inputCloud->points[i].x) > 1.2f || fabs(inputCloud->points[i].y) > 1.2f || fabs(inputCloud->points[i].z) > 1.2f)
+        {
+            pcl::PointXYZ inputPointTransformed = transformedCloud->points[i];
+            //if (fabs(inputPointTransformed.v) < 0.05 || fabs(inputPointTransformed.v + 1) < 0.05)
+            //{
+            pcl::PointXYZ normal;
+            pcl::PointXYZ normalPosition;
+            if (associatePointToPlane(inputPointTransformed,normal,normalPosition))
+            {
+                pointToPlaneIdx.push_back(i);
+                surfaceNormals->points.push_back(normal);
+                surfaceNormalsPosition->points.push_back(normalPosition);
+                transformedInputCloud->points.push_back(inputPointTransformed);
+                //std::cout << "pointToPlaneIdx.size=" << pointToPlaneIdx.size() << std::endl;
+                //std::cout << "associated inputPointTransformed=" << inputPointTransformed << " with normalPosition=" << normalPosition << std::endl;
+            }
+            //}
+            //else
+            //{
+            //processCorner();
+            //}
+        }
+    }
+
+    //    pcl::PointIndices::Ptr outliers (new pcl::PointIndices);
+    //    pcl::PointCloud<pcl::PointXYZ>::Ptr surfaceNormalsPosition_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+    //    pcl::VoxelGrid<pcl::PointXYZ> downSizeFilter2;
+    //    downSizeFilter2.Filter(true);
+    //    downSizeFilter2.setInputCloud(surfaceNormalsPosition);
+    //    downSizeFilter2.setLeafSize(0.5f, 0.5f, 0.5f);
+
+    //    downSizeFilter2.filter(*surfaceNormalsPosition_filtered);
+    //    downSizeFilter2.getRemovedIndices(*outliers);
+    //    filtered_idx = outliers->indices;
+
+    //std::cout << "filtered_idx.size" << filtered_idx.size()  << " shoud be " << outliers->indices.size() << std::endl;
+
+    sensor_msgs::PointCloud2 pc2;
+    pcl::toROSMsg(*surfaceNormalsPosition, pc2);
+    pc2.header.stamp = ros::Time().now();
+    pc2.header.frame_id = "/world";
+    pubSurfaceNormalsPosition.publish(pc2);
+
+    sensor_msgs::PointCloud2 pc3;
+    pcl::toROSMsg(*transformedCloud, pc3);
+    pc3.header.stamp = ros::Time().now();
+    pc3.header.frame_id = "/world";
+    pubInput.publish(pc3);
+
+    sensor_msgs::PointCloud2 pcX;
+    pcl::toROSMsg(*surfaceNormalsX, pcX);
+    pcX.header.stamp = ros::Time().now();
+    pcX.header.frame_id = "/world";
+    pubSurfaceNormalsX.publish(pcX);
+
+    sensor_msgs::PointCloud2 pcY;
+    pcl::toROSMsg(*surfaceNormalsY, pcY);
+    pcY.header.stamp = ros::Time().now();
+    pcY.header.frame_id = "/world";
+    pubSurfaceNormalsY.publish(pcY);
+
+    sensor_msgs::PointCloud2 pcZ;
+    pcl::toROSMsg(*surfaceNormalsZ, pcZ);
+    pcZ.header.stamp = ros::Time().now();
+    pcZ.header.frame_id = "/world";
+    pubSurfaceNormalsZ.publish(pcZ);
+
+
+
+
+
+
+
+    //std::cout << "associated pointToPlaneIdx.size()=" << pointToPlaneIdx.size() << ", surfaceNormals=" << surfaceNormals->points.size() << std::endl;
+}
+
+template<typename _Matrix_Type_>
+_Matrix_Type_ pseudoInverse(const _Matrix_Type_ &a, double epsilon =
+        std::numeric_limits<double>::epsilon())
+{
+    Eigen::JacobiSVD< _Matrix_Type_ > svd(a ,Eigen::ComputeThinU |
+                                          Eigen::ComputeThinV);
+    double tolerance = epsilon * std::max(a.cols(), a.rows())
+            *svd.singularValues().array().abs()(0);
+    return svd.matrixV() *  (svd.singularValues().array().abs() >
+                             tolerance).select(svd.singularValues().array().inverse(),
+                                               0).matrix().asDiagonal() * svd.matrixU().adjoint();
+}
+
+Eigen::MatrixXf ICP::nonlinearLVM(float lambda)
+{
+    Eigen::MatrixXf inc(6,1);
+
+    if (!(pointToPlaneIdx.size() == surfaceNormals->points.size() && pointToPlaneIdx.size() == surfaceNormalsPosition->points.size()))
+    {
+        std::cout << "[ERROR]: input cloud size is different " << std::endl;
+        return inc;
+    }
+
+    int amount = pointToPlaneIdx.size();
+    if (amount < 5)
+        return inc;
+
+    Eigen::MatrixXf J(amount,6);
+    Eigen::MatrixXf d(amount,1);
+
+    float sum_d=0;
+    for (int i=0; i < amount; i++)
+    {
+        Eigen::MatrixXf J_temp(1,6);
+        J_temp = getPlaneJacobi(transformation, surfaceNormals->points[i], surfaceNormalsPosition->points[i], inputCloud->points[pointToPlaneIdx[i]]);
+        J(i,0) = J_temp(0);
+        J(i,1) = J_temp(1);
+        J(i,2) = J_temp(2);
+        J(i,3) = J_temp(3);
+        J(i,4) = J_temp(4);
+        J(i,5) = J_temp(5);
+        d(i,0) = getPoint2PlaneDistance(surfaceNormals->points[i], surfaceNormalsPosition->points[i], transformedInputCloud->points[i]);
+        d(i,0) = d(i,0) * d(i,0);
+        sum_d += d(i,0);
+    }
+
+    //std::cout << "J:" << J << std::endl;
+
+    float * temp = new float[6];
+    for (int i=0;i<6;i++)
+        temp[i] = transformation[i];
+    transformArray.push_back(temp);
+
+    sumd.push_back(sum_d / (float)amount);
+
+    std::cout << "sum_d=" << sum_d << " mean=" << sum_d / (float)amount << " lambda=" << lambda << std::endl;
+
+    Eigen::MatrixXf JtJ(amount,amount);
+    JtJ = J.transpose() * J;
+    //std::cout << "JtJ=" << JtJ << std::endl;
+
+
+
+    Eigen::MatrixXf inv(amount,amount);
+    Eigen::MatrixXf JtJ_diag(6,6);
+    Eigen::MatrixXf JtJ_diag_vec;
+    JtJ_diag_vec = JtJ.diagonal();
+    JtJ_diag << JtJ_diag_vec(0,0), 0, 0, 0, 0, 0,
+            0, JtJ_diag_vec(1,0), 0, 0, 0, 0,
+            0, 0, JtJ_diag_vec(2,0), 0, 0, 0,
+            0, 0, 0, JtJ_diag_vec(3,0), 0, 0,
+            0, 0, 0, 0, JtJ_diag_vec(4,0), 0,
+            0, 0, 0, 0, 0, JtJ_diag_vec(5,0);
+    inv = JtJ + lambda * JtJ_diag;
+    //std::cout << "JtJ.diagonal()=" << JtJ.diagonal() << std::endl;
+    //std::cout << "JtJ_diag=" << JtJ_diag << std::endl;
+    inv = pseudoInverse(inv);
+    //std::cout << "inv" << inv << std::endl;
+
+
+    inc = inv * J.transpose();
+    inc = inc * d;
+    //std::cout << "inc =" << inc << std::endl;
+    //up = pinv(J'*J+lambda*diag(diag(J'*J))) * J' * d.^2;
+
+    return inc;
+
+
+}
+
+Eigen::MatrixXf ICP::getPlaneJacobi(float * theta, pcl::PointXYZ normal, pcl::PointXYZ normalPosition, pcl::PointXYZ point)
+{
+    float d_2_x = normal.x * normal.x;
+    float d_2_y = normal.y * normal.y;
+    float d_2_z = normal.z * normal.z;
+    float n = d_2_x + d_2_y + d_2_z;
+    Eigen::Matrix3f R;
+    R = getRotationMatrix(theta[3],theta[4], theta[5]);
+    Eigen::Vector3f t;
+    t << theta[0], theta[1], theta[2];
+
+    Eigen::Vector3f point_k1(point.x, point.y, point.z);
+    Eigen::Vector3f point_k(normalPosition.x, normalPosition.y, normalPosition.z);
+    Eigen::Vector3f a = R*point_k1+t-point_k;
+
+
+    Eigen::Vector3f a_x;
+    a_x = a_x_theta(theta[3],theta[4],theta[5],point_k1);
+    Eigen::MatrixXf temp_x(1, 6);
+    temp_x << 1, 0, 0, a_x(0), a_x(1), a_x(2);
+    temp_x *= 2 * a(0) * d_2_x;
+
+    Eigen::Vector3f a_y;
+    a_y = a_y_theta(theta[3],theta[4],theta[5],point_k1);
+    Eigen::MatrixXf temp_y(1, 6);
+    temp_y << 0, 1, 0, a_y(0), a_y(1), a_y(2);
+    temp_y *= 2 * a(1) * d_2_y;
+
+    Eigen::Vector3f a_z;
+    a_z = a_z_theta(theta[3],theta[4],theta[5],point_k1);
+    Eigen::MatrixXf temp_z(1, 6);
+    temp_z << 0, 0, 1, a_z(0), a_z(1), a_z(2);
+    temp_z *= 2 * a(2) * d_2_z;
+
+    return (temp_x + temp_y + temp_z) / n;
+}
+
+float ICP::getPoint2PlaneDistance(pcl::PointXYZ normal, pcl::PointXYZ normalPosition, pcl::PointXYZ point)
+{
+    Eigen::Vector3f temp;
+    temp(0) = point.x - normalPosition.x;
+    temp(1) = point.y - normalPosition.y;
+    temp(2) = point.z - normalPosition.z;
+    Eigen::Vector3f eigNormal(normal.x,normal.y,normal.z);
+    float norm = eigNormal.norm();
+    float t;
+    t  = temp.transpose() * eigNormal;
+    return t / norm;
 }
 
 void ICP::testCovariance()
@@ -200,7 +655,7 @@ void ICP::testLVM()
     inputCloud->points.push_back(pcl::PointXYZ(-11.6150,-0.2376,2.4120));
 
 
-    nonlinearLVM();
+    //nonlinearLVM();
 
     Eigen::MatrixXf J(10,6);
     J << -0.1332, 0.1759, 0.0522, 0.5482, -7.1259, -8.4516,
@@ -240,266 +695,12 @@ void ICP::testLVM()
 
     Eigen::MatrixXf up(6,1);
     up << -0.3024,
-     5.4591,
-    -0.4369,
-     0.0705,
-     0.0108,
-     0.1181;
+            5.4591,
+            -0.4369,
+            0.0705,
+            0.0108,
+            0.1181;
 
     std::cout << "inc should be:" << up << std::endl;
 
-}
-
-void ICP::computeCovariance(pcl::PointCloud<pcl::PointXYZ>::Ptr pc, std::vector<int> & pointIdxNKNSearch, pcl::PointXYZ mean, Eigen::Matrix3f & covariance)
-{
-    float a11 = 0;
-    float a12 = 0;
-    float a13 = 0;
-    float a22 = 0;
-    float a23 = 0;
-    float a33 = 0;
-    int K = pointIdxNKNSearch.size();
-    for (int i = 0; i < K; i++)
-    {
-        float ax = pc->points[pointIdxNKNSearch[i]].x - mean.x;
-        float ay = pc->points[pointIdxNKNSearch[i]].y - mean.y;
-        float az = pc->points[pointIdxNKNSearch[i]].z - mean.z;
-
-        a11 += ax * ax;
-        a12 += ax * ay;
-        a13 += ax * az;
-        a22 += ay * ay;
-        a23 += ay * az;
-        a33 += az * az;
-    }
-
-    covariance << a11, a12, a13, a12, a22, a23, a13, a23, a33;
-    covariance = covariance / K;
-
-}
-
-void ICP::doICP()
-{
-    //    double x = 0.5;
-    //    const double initial_x = x;
-    //    // Build the problem.
-    //    Problem problem;
-    //    // Set up the only cost function (also known as residual). This uses
-    //    // auto-differentiation to obtain the derivative (jacobian).
-    //    CostFunction* cost_function = new AutoDiffCostFunction<CostFunctor, 1, 1>(new CostFunctor);
-    //    problem.AddResidualBlock(cost_function, NULL, &x);
-    //    // Run the solver!
-    //    Solver::Options options;
-
-    //    options.minimizer_progress_to_stdout = true;
-    //    Solver::Summary summary;
-    //    Solve(options, &problem, &summary);
-    //    std::cout << summary.BriefReport() << "\n";
-    //    std::cout << "x : " << initial_x
-    //              << " -> " << x << "\n";
-
-
-    //float deltaR, deltaT;
-    for (int iter= 0; iter < maxIteration; iter++)
-    {
-        std::cout << "[Mapping] iter: " << iter << std::endl;
-
-        associate();
-
-        nonlinearLVM();
-
-        std::cout << "transformation: " << transformation[0] << " " << transformation[1] << " " << transformation[2]
-                  << " " << transformation[3] << " " << transformation[4] << " " << transformation[5] << std::endl;
-
-
-        //        if (deltaR < icp_R_break && deltaT < icp_T_break) {
-        //std::cout << "[MAPPING] deltaR:" << deltaR << " < " << icp_R_break << " && deltaT: " << deltaT << " < " << icp_T_break << std::endl;
-        //            break;
-        //        }
-    }
-    //    if (deltaR > icp_R_break || deltaT > icp_T_break) {
-    //        std::cout << "[MAPPING] Out of bound deltaR: " << deltaR << " , deltaT: " << deltaT << std::endl;
-    //    }
-
-
-    //testGetPoint2PlaneDistance();
-    //testGetPlaneJacobi();
-    //testCovariance();
-    //testLVM();
-}
-
-void ICP::associate()
-{
-    // Transform input point cloud according to its current estimate
-    pcl::PointCloud<pcl::PointXYZ>::Ptr transformedCloud(new pcl::PointCloud<pcl::PointXYZ> ());
-    Eigen::Matrix4f T = getTransformationMatrix();
-    //std::cout << "T:" << T << std::endl;
-    pcl::transformPointCloud (*inputCloud, *transformedCloud, T);
-
-    pointToPlaneIdx.resize(0);
-    surfaceNormals->points.resize(0);
-    surfaceNormalsPosition->points.resize(0);
-    transformedInputCloud->points.resize(0);
-
-    for (int i = 0; i < transformedCloud->points.size() && pointToPlaneIdx.size()<20000; i+=10)
-    {
-        //std::cout << i;
-        if (fabs(inputCloud->points[i].x > 1.2) || fabs(inputCloud->points[i].y > 1.2) || fabs(inputCloud->points[i].z > 1.2))
-        {
-            pcl::PointXYZ inputPointTransformed = transformedCloud->points[i];
-            //if (fabs(inputPointTransformed.v) < 0.05 || fabs(inputPointTransformed.v + 1) < 0.05)
-            //{
-            pcl::PointXYZ normal;
-            pcl::PointXYZ normalPosition;
-            if (associatePointToPlane(inputPointTransformed,normal,normalPosition))
-            {
-                pointToPlaneIdx.push_back(i);
-                surfaceNormals->points.push_back(normal);
-                surfaceNormalsPosition->points.push_back(normalPosition);
-                transformedInputCloud->points.push_back(inputPointTransformed);
-                //std::cout << "pointToPlaneIdx.size=" << pointToPlaneIdx.size() << std::endl;
-                //std::cout << "associated inputPointTransformed=" << inputPointTransformed << " with normalPosition=" << normalPosition << std::endl;
-            }
-            //}
-            //else
-            //{
-            //processCorner();
-            //}
-        }
-    }
-    std::cout << "associated pointToPlaneIdx.size()=" << pointToPlaneIdx.size() << ", surfaceNormals=" << surfaceNormals->points.size() << std::endl;
-}
-
-template<typename _Matrix_Type_>
-_Matrix_Type_ pseudoInverse(const _Matrix_Type_ &a, double epsilon =
-        std::numeric_limits<double>::epsilon())
-{
-    Eigen::JacobiSVD< _Matrix_Type_ > svd(a ,Eigen::ComputeThinU |
-                                          Eigen::ComputeThinV);
-    double tolerance = epsilon * std::max(a.cols(), a.rows())
-            *svd.singularValues().array().abs()(0);
-    return svd.matrixV() *  (svd.singularValues().array().abs() >
-                             tolerance).select(svd.singularValues().array().inverse(),
-                                               0).matrix().asDiagonal() * svd.matrixU().adjoint();
-}
-
-void ICP::nonlinearLVM()
-{
-    if (!(pointToPlaneIdx.size() == surfaceNormals->points.size() && pointToPlaneIdx.size() == surfaceNormalsPosition->points.size()))
-    {
-        std::cout << "[ERROR]: input cloud size is different " << std::endl;
-        return;
-    }
-
-    int amount = pointToPlaneIdx.size();
-    if (amount < 5)
-        return;
-
-    Eigen::MatrixXf J(amount,6);
-    Eigen::MatrixXf d(amount,1);
-
-    float sum_d=0;
-    for (int i=0; i < amount; i++)
-    {
-
-        Eigen::MatrixXf J_temp(1,6);
-        J_temp = getPlaneJacobi(transformation, surfaceNormals->points[i], surfaceNormalsPosition->points[i], inputCloud->points[pointToPlaneIdx[i]]);
-        J(i,0) = J_temp(0);
-        J(i,1) = J_temp(1);
-        J(i,2) = J_temp(2);
-        J(i,3) = J_temp(3);
-        J(i,4) = J_temp(4);
-        J(i,5) = J_temp(5);
-        //std::cout << "J_temp=" << J_temp << std::endl;
-        d(i,0) = getPoint2PlaneDistance(surfaceNormals->points[i], surfaceNormalsPosition->points[i], transformedInputCloud->points[i]);
-        d(i,0) = d(i,0) * d(i,0);
-        sum_d += d(i,0);
-    }
-
-    //std::cout << "J:" << J << std::endl;
-
-    std::cout << "sum_d=" << sum_d << std::endl;
-
-
-    Eigen::MatrixXf JtJ(amount,amount);
-    JtJ = J.transpose() * J;
-    //std::cout << "JtJ=" << JtJ << std::endl;
-
-    float lambda = 0.001f;
-    Eigen::MatrixXf inv(amount,amount);
-    Eigen::MatrixXf JtJ_diag(6,6);
-    Eigen::MatrixXf JtJ_diag_vec;
-    JtJ_diag_vec = JtJ.diagonal();
-    JtJ_diag << JtJ_diag_vec(0,0), 0, 0, 0, 0, 0,
-            0, JtJ_diag_vec(1,0), 0, 0, 0, 0,
-            0, 0, JtJ_diag_vec(2,0), 0, 0, 0,
-            0, 0, 0, JtJ_diag_vec(3,0), 0, 0,
-            0, 0, 0, 0, JtJ_diag_vec(4,0), 0,
-            0, 0, 0, 0, 0, JtJ_diag_vec(5,0);
-    inv = JtJ + lambda * JtJ_diag;
-    //std::cout << "JtJ.diagonal()=" << JtJ.diagonal() << std::endl;
-    //std::cout << "JtJ_diag=" << JtJ_diag << std::endl;
-    inv = pseudoInverse(inv);
-    //std::cout << "inv" << inv << std::endl;
-
-    Eigen::MatrixXf inc(6,1);
-    inc = inv * J.transpose();
-    inc = inc * d;
-    //std::cout << "inc =" << inc << std::endl;
-    //up = pinv(J'*J+lambda*diag(diag(J'*J))) * J' * d.^2;
-
-    for (int i=0;i<6;i++)
-        transformation[i] = transformation[i] - inc(i,0);
-
-
-}
-
-Eigen::MatrixXf ICP::getPlaneJacobi(float * theta, pcl::PointXYZ normal, pcl::PointXYZ normalPosition, pcl::PointXYZ point)
-{
-    float d_2_x = normal.x * normal.x;
-    float d_2_y = normal.y * normal.y;
-    float d_2_z = normal.z * normal.z;
-    float n = d_2_x + d_2_y + d_2_z;
-    Eigen::Matrix3f R;
-    R = getRotationMatrix(theta[3],theta[4], theta[5]);
-    Eigen::Vector3f t;
-    t << theta[0], theta[1], theta[2];
-
-    Eigen::Vector3f point_k1(point.x, point.y, point.z);
-    Eigen::Vector3f point_k(normalPosition.x, normalPosition.y, normalPosition.z);
-    Eigen::Vector3f a = R*point_k1+t-point_k;
-
-
-    Eigen::Vector3f a_x;
-    a_x = a_x_theta(theta[3],theta[4],theta[5],point_k1);
-    Eigen::MatrixXf temp_x(1, 6);
-    temp_x << 1, 0, 0, a_x(0), a_x(1), a_x(2);
-    temp_x *= 2 * a(0) * d_2_x;
-
-    Eigen::Vector3f a_y;
-    a_y = a_y_theta(theta[3],theta[4],theta[5],point_k1);
-    Eigen::MatrixXf temp_y(1, 6);
-    temp_y << 0, 1, 0, a_y(0), a_y(1), a_y(2);
-    temp_y *= 2 * a(1) * d_2_y;
-
-    Eigen::Vector3f a_z;
-    a_z = a_z_theta(theta[3],theta[4],theta[5],point_k1);
-    Eigen::MatrixXf temp_z(1, 6);
-    temp_z << 0, 0, 1, a_z(0), a_z(1), a_z(2);
-    temp_z *= 2 * a(2) * d_2_z;
-
-    return (temp_x + temp_y + temp_z) / n;
-}
-
-float ICP::getPoint2PlaneDistance(pcl::PointXYZ normal, pcl::PointXYZ normalPosition, pcl::PointXYZ point)
-{
-    Eigen::Vector3f temp;
-    temp(0) = point.x - normalPosition.x;
-    temp(1) = point.y - normalPosition.y;
-    temp(2) = point.z - normalPosition.z;
-    Eigen::Vector3f eigNormal(normal.x,normal.y,normal.z);
-    float norm = eigNormal.norm();
-    float t;
-    t  = temp.transpose() * eigNormal;
-    return t / norm;
 }
