@@ -66,7 +66,6 @@ int main( int argc, char** argv )
         downSizeFilter.setLeafSize(0.1f, 0.1f, 0.1f);
         downSizeFilter.filter(*cloud_source);
 
-
         pcl::VoxelGrid<pcl::PointXYZ> downSizeFilter2;
         downSizeFilter2.setInputCloud(cloud_target_filtered);
         downSizeFilter2.setLeafSize(0.1f, 0.1f, 0.1f);
@@ -89,14 +88,14 @@ int main( int argc, char** argv )
 
 
         // Set up pcl icp
-        pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+        pcl::IterativeClosestPointNonLinear<pcl::PointXYZ, pcl::PointXYZ> icp;
         // Set the input source and target
         icp.setInputCloud (cloud_source);
         icp.setInputTarget (cloud_target);
         // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
         icp.setMaxCorrespondenceDistance (0.5);
         // Set the maximum number of iterations (criterion 1)
-        icp.setMaximumIterations (10);
+        icp.setMaximumIterations (20);
         // Set the transformation epsilon (criterion 2)
         icp.setTransformationEpsilon (1e-8);
         // Set the euclidean distance difference epsilon (criterion 3)
