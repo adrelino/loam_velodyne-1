@@ -31,13 +31,12 @@ struct data
 int main( int argc, char** argv )
 {
     ros::init(argc, argv, "KITTI");
-    int offset = 0;
-    int maxId = 4500;
+    int offset = 90;
+    int maxId = 130;
     KITTI kitti(0,maxId,offset);
     loam_wrapper loam;
 
     toMATLAB temp;
-    temp.write();
 
     std::vector<Eigen::Matrix4d> T_result;
     std::vector<Eigen::Matrix4d> T_result_delta;
@@ -50,6 +49,9 @@ int main( int argc, char** argv )
     {
         pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn(new pcl::PointCloud<pcl::PointXYZ>());
         kitti.getOneVel(laserCloudIn,i);
+        std::stringstream filename;
+        filename << "input_" << i << ".csv";
+        temp.writePCLToCSV(filename.str(),laserCloudIn);
        // kitti.dispLidarInImage(laserCloudIn,i);
         Eigen::Matrix4d T = kitti.getVelo_to_cam_T();
         pcl::transformPointCloud (*laserCloudIn, *laserCloudIn, T);

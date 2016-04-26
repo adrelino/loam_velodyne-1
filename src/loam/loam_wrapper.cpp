@@ -61,8 +61,17 @@ void loam_wrapper::publishInput(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc)
     sensor_msgs::PointCloud2 pc2;
     pcl::toROSMsg(*pc, pc2);
     pc2.header.stamp = ros::Time().now();
-    pc2.header.frame_id = "/camera_init_2";
+    pc2.header.frame_id = "/world";
     publishInput(pc2);
+}
+
+void loam_wrapper::publishFirst(pcl::PointCloud<pcl::PointXYZ>::Ptr pc)
+{
+    sensor_msgs::PointCloud2 pc2;
+    pcl::toROSMsg(*pc, pc2);
+    pc2.header.stamp = ros::Time().now();
+    pc2.header.frame_id = "/world";
+    pubFirst.publish(pc2);
 }
 
 void loam_wrapper::publishFirst(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc)
@@ -74,7 +83,7 @@ void loam_wrapper::publishFirst(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc)
     pubFirst.publish(pc2);
 }
 
-void loam_wrapper::publishMap(pcl::PointCloud<pcl::PointXYZI>::Ptr pc)
+void loam_wrapper::publishMap(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc)
 {
     sensor_msgs::PointCloud2 pc2;
     pcl::toROSMsg(*pc, pc2);
@@ -84,6 +93,15 @@ void loam_wrapper::publishMap(pcl::PointCloud<pcl::PointXYZI>::Ptr pc)
 }
 
 void loam_wrapper::publishSecond(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc)
+{
+    sensor_msgs::PointCloud2 pc2;
+    pcl::toROSMsg(*pc, pc2);
+    pc2.header.stamp = ros::Time().now();
+    pc2.header.frame_id = "/world";
+    pubSecond.publish(pc2);
+}
+
+void loam_wrapper::publishSecond(pcl::PointCloud<pcl::PointXYZ>::Ptr pc)
 {
     sensor_msgs::PointCloud2 pc2;
     pcl::toROSMsg(*pc, pc2);
@@ -261,14 +279,18 @@ Eigen::Matrix4d loam_wrapper::mapTraining(const pcl::PointCloud<pcl::PointXYZ>::
 
         T_total_od = T_total_od * T_od;
 
-
+        //publishInput(outLaserCloudLast2);
 
         /// Lasser Mapping
         laserMap->laserOdometryHandlerVelo(T_total_od);
         laserMap->laserCloudLastHandlerVelo(outLaserCloudLast2);
         laserMap->loop();
+        //laserMap->resetMap();
+        //
         T_total_map = laserMap->T_transform;
-        //publishMap(laserMap->laserCloudSurround);
+        publishMap(laserMap->laserCloudMapCorres);
+        pcl::transformPointCloud (*laserMap->laserCloudOri, *laserMap->laserCloudOri, T_total_map);
+        publishInput(laserMap->laserCloudOri);
 
 
 

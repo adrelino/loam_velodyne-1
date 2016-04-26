@@ -22,6 +22,7 @@
 #include "KITTI_util/toMATLAB.h"
 
 #include <pcl/registration/registration.h>
+#include <pcl/registration/transformation_estimation_point_to_plane.h>
 
 struct data
 {
@@ -87,22 +88,43 @@ int main( int argc, char** argv )
         loam.publishSecond(cloud_target);
 
 
-        // Set up pcl icp
-        pcl::IterativeClosestPointNonLinear<pcl::PointXYZ, pcl::PointXYZ> icp;
-        // Set the input source and target
-        icp.setInputCloud (cloud_source);
-        icp.setInputTarget (cloud_target);
-        // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
-        icp.setMaxCorrespondenceDistance (0.5);
-        // Set the maximum number of iterations (criterion 1)
-        icp.setMaximumIterations (20);
-        // Set the transformation epsilon (criterion 2)
-        icp.setTransformationEpsilon (1e-8);
-        // Set the euclidean distance difference epsilon (criterion 3)
-        icp.setEuclideanFitnessEpsilon (1);
-        // Perform the alignment
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source_registered(new pcl::PointCloud<pcl::PointXYZ>());
-        icp.align (*cloud_source_registered);
+
+
+
+
+
+
+        pcl::PointCloud<pcl::PointNormal>::Ptr src(new pcl::PointCloud<pcl::PointNormal>);
+        pcl::copyPointCloud(*cloud_source, *src);
+        pcl::PointCloud<pcl::PointNormal>::Ptr tgt(new pcl::PointCloud<pcl::PointNormal>);
+        pcl::copyPointCloud(*cloud_target, *tgt);
+
+        pcl::NormalEstimation<pcl::PointNormal, pcl::PointNormal> norm_est;
+        norm_est.setSearchMethod (pcl::search::KdTree<pcl::PointNormal>::Ptr (new pcl::search::KdTree<pcl::PointNormal>));
+        norm_est.setKSearch (10);
+        norm_est.setInputCloud (tgt);
+        norm_est.compute (*tgt);
+
+        pcl::IterativeClosestPoint<pcl::PointNormal, pcl::PointNormal> icp;
+        typedef pcl::registration::TransformationEstimationPointToPlane<pcl::PointNormal, pcl::PointNormal> PointToPlane;
+        boost::shared_ptr<PointToPlane> point_to_plane(new PointToPlane);
+        icp.setTransformationEstimation(point_to_plane);
+        icp.setInputCloud(src);
+        icp.setInputTarget(tgt);
+        icp.setRANSACOutlierRejectionThreshold(0.05);
+        icp.setRANSACIterations(100);
+        icp.setMaximumIterations(1000);
+        icp.setTransformationEpsilon(1e-3);
+        pcl::PointCloud<pcl::PointNormal> output;
+        icp.align(output);
+
+
+
+
+
+
+
+
         // Obtain the transformation that aligned cloud_source to cloud_source_registered
         Eigen::Matrix4d T_back= icp.getFinalTransformation().cast<double>();
 

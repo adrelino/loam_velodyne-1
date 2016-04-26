@@ -1,6 +1,6 @@
 function r = loam()
-velo_1 = csvread('/home/sebastian/Git/rosbuild_ws/loam/loam_velodyne/input_1.csv.csv');
-velo_2 = csvread('/home/sebastian/Git/rosbuild_ws/loam/loam_velodyne/input_2.csv.csv');
+velo_1 = csvread('/home/sebastian/Git/rosbuild_ws/loam/loam_velodyne/input_130.csv.csv');
+velo_2 = csvread('/home/sebastian/Git/rosbuild_ws/loam/loam_velodyne/input_131.csv.csv');
 T = getGT();
 T_t = getVeloToCam()
 diff = getDiff(T{2},T{3})
@@ -39,12 +39,15 @@ for j = 1:10
     length(normal_k)
     
     for i = 1:length(normal_k)
-        J(i,:) = getPlaneJacobi(theta,normal_k{i}',point_k{i}',point_temp{i}');
+        J(i,:) = getPlaneJacobi([0 0 0 0 0 0],normal_k{i}',point_k{i}',point_k1{i}');
         d(i,1) = getPlaneDistance2(normal_k{i},point_k{i}',point_k1{i}');
+        w(i) = norm(point_k1{i});
     end
+    %W=diag(w/sum(w));
+    W=diag(ones(length(normal_k),1));
     [sum(d) theta']
     cov(d)
-    up = pinv(J'*J+lambda*diag(diag(J'*J))) * J' * d.^2;
+    up = pinv(J'*J+lambda*diag(diag(J'*W*J))) * J' * d;
     
     theta = theta - up;
     
@@ -167,7 +170,7 @@ r = zeros(4,length(pc));
 for i=1:length(pc)
     r(:,i) = T*[pc(:,i);1];
 end
-end
+end 
 
 function T = getVeloToCam()
 R_vel = [7.967514e-03, -9.999679e-01, -8.462264e-04; -2.771053e-03, 8.241710e-04, -9.999958e-01; 9.999644e-01, 7.969825e-03, -2.764397e-03];

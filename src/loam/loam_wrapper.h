@@ -120,14 +120,17 @@ public:
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlatLast;
     pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDSLast;
     Eigen::Matrix4d mapTraining(const pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudIn, const Eigen::Matrix4d T_gt);
+    void publishFirst(pcl::PointCloud<pcl::PointXYZ>::Ptr pc);
+    void publishFirst(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc);
+    void publishSecond(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc);
+    void publishSecond(pcl::PointCloud<pcl::PointXYZ>::Ptr pc);
 private:
     //    pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsSharp;
     //    pcl::PointCloud<pcl::PointXYZHSV>::Ptr cornerPointsLessSharp;
     //    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsFlat;
     //    pcl::PointCloud<pcl::PointXYZHSV>::Ptr surfPointsLessFlatDS;
-    void publishFirst(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc);
-    void publishSecond(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc);
-    void publishMap(pcl::PointCloud<pcl::PointXYZI>::Ptr pc);
+
+    void publishMap(pcl::PointCloud<pcl::PointXYZHSV>::Ptr pc);
 
 
 };

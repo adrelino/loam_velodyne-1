@@ -37,12 +37,12 @@ class ICP
 public:
     ICP();
     void reset();
-    void associate();
+    void associate(int iter);
     Eigen::MatrixXf nonlinearLVM(float lambda);
     void testCovariance();
     void testLVM();
-    bool associatePointToPlane(pcl::PointXYZ &searchPoint, pcl::PointXYZ &normal, pcl::PointXYZ &point);
-    Eigen::MatrixXf getPlaneJacobi(float * theta, pcl::PointXYZ normal, pcl::PointXYZ normalPosition, pcl::PointXYZ point_k1);
+    bool associatePointToPlane(pcl::PointXYZ &searchPoint, pcl::PointXYZ &normal, pcl::PointXYZ &normalPosition, pcl::PointXYZ &point);
+    Eigen::MatrixXf getPlaneJacobi(pcl::PointXYZ normal, pcl::PointXYZ normalPosition, pcl::PointXYZ point_k1);
     float getPoint2PlaneDistance(pcl::PointXYZ normal, pcl::PointXYZ normalPosition, pcl::PointXYZ point);
     void computeMean(pcl::PointCloud<pcl::PointXYZ>::Ptr pc, std::vector<int> & pointIdxNKNSearch, pcl::PointXYZ & mean);
     void computeCovariance(pcl::PointCloud<pcl::PointXYZ>::Ptr pc, std::vector<int> & pointIdxNKNSearch, pcl::PointXYZ mean, Eigen::Matrix3f & covariance);
@@ -78,12 +78,18 @@ public:
     void setSurfaceMap(pcl::PointCloud<pcl::PointXYZ>::Ptr in)
     {
         *surfaceMap = *in;
-        setKdTree(surfaceMap);
+        setKdTreeSurfMap(surfaceMap);
     }
 
-    void setKdTree(pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudSurfFromMap)
+    void setKdTreeSurfMap(pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudSurfFromMap)
     {
         kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMap);
+    }
+
+    void setKdTreeInput(pcl::PointCloud<pcl::PointXYZ>::Ptr laserCloudSurfFromMap)
+    {
+        kdtreeInput.reset(new pcl::KdTreeFLANN<pcl::PointXYZ>());
+        kdtreeInput->setInputCloud(laserCloudSurfFromMap);
     }
 
     Eigen::Matrix3f getRotationMatrix(float phi, float theta, float psi)
@@ -112,9 +118,13 @@ public:
         Eigen::Matrix4d T;
         Eigen::Matrix3f R;
         R = getRotationMatrix(temp[3],temp[4],temp[5]);
-        T << R(0,0), R(0,1), R(0,2), temp[0],
-             R(1,0), R(1,1), R(1,2), temp[1],
-             R(2,0), R(2,1), R(2,2), temp[2],
+        R = R.inverse();
+        Eigen::Vector3f t;
+        t << temp[0], temp[1], temp[2];
+        t = -R*t;
+        T << R(0,0), R(0,1), R(0,2), t(0),
+             R(1,0), R(1,1), R(1,2), t(1),
+             R(2,0), R(2,1), R(2,2), t(2),
              0, 0, 0, 1;
         return T;
     }
@@ -122,6 +132,7 @@ public:
     Eigen::Matrix4d getBestResult()
     {
         int minIdx = getSumdMinimum();
+        minIdx = transformArray.size()-1;
         std::cout << "I'm using sumd[" << minIdx << "]=" << sumd[minIdx] << std::endl;
         return getTransformationMatrixd(transformArray[minIdx]);
     }
@@ -144,16 +155,67 @@ public:
 
     float transformation[6];
 
+    void testGetPoint2PlaneDistance()
+    {
+        pcl::PointXYZ normal;
+        normal.x = 0;
+        normal.y = 0;
+        normal.z = 1;
+        pcl::PointXYZ normalPosition;
+        normalPosition.x = 1;
+        normalPosition.y = 1;
+        normalPosition.z = 1;
+        pcl::PointXYZ point;
+        point.x = 1;
+        point.y = 1;
+        point.z = 0;
+        std::cout << "Should be one : " << getPoint2PlaneDistance(normal, normalPosition, point) << std::endl;
+
+        point.x = 0;
+        point.y = 1;
+        point.z = 1;
+
+        std::cout << "Should be zero : " << getPoint2PlaneDistance(normal, normalPosition, point) << std::endl;
+
+    }
+
+    void testGetPlaneJacobi()
+    {
+        float theta[6];
+        for (int i=0;i<6;i++)
+            theta[i] = 0.0f;
+
+        pcl::PointXYZ normal;
+        normal.x = 0;
+        normal.y = 0;
+        normal.z = 1;
+        pcl::PointXYZ normalPosition;
+        normalPosition.x = 1;
+        normalPosition.y = 1;
+        normalPosition.z = 1;
+        pcl::PointXYZ point;
+        point.x = 1;
+        point.y = 1;
+        point.z = 0;
+
+        std::cout << "Should be something: " << getPlaneJacobi(normal, normalPosition, point) << std::endl;
+
+        point.z = 1;
+
+        std::cout << "Should be zero: " << getPlaneJacobi(normal, normalPosition, point) << std::endl;
+
+    }
+
 private:
     bool checkDirection(pcl::PointXYZ &normal,pcl::PointXYZ &normalPosition);
-    int maxIteration = 30;
+    int maxIteration = 60;
     int K = 5;
 
     int x_direction = 0;
     int y_direction = 0;
     int z_direction = 0;
 
-    float lambda_0 = .001f;
+    float lambda_0 = 0.001f;
     float nu = 2.1f;
     float eig_values_larger = 130.0f;
     float PI = 3.14159f;
@@ -164,6 +226,8 @@ private:
 
     // HSV
     pcl::PointCloud<pcl::PointXYZ>::Ptr inputCloud;
+    pcl::KdTreeFLANN<pcl::PointXYZ>::Ptr kdtreeInput;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformedCloud;
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr surfaceMap;
     pcl::KdTreeFLANN<pcl::PointXYZ>::Ptr kdtreeSurfFromMap;
@@ -175,7 +239,7 @@ private:
     pcl::PointCloud<pcl::PointXYZ>::Ptr surfaceNormalsY;
     pcl::PointCloud<pcl::PointXYZ>::Ptr surfaceNormalsZ;
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr transformedInputCloud;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformedMap;
 
 
 
@@ -395,54 +459,7 @@ private:
         return temp * X;
     }
 
-    void testGetPoint2PlaneDistance()
-    {
-        pcl::PointXYZ normal;
-        normal.x = 0;
-        normal.y = 0;
-        normal.z = 1;
-        pcl::PointXYZ normalPosition;
-        normalPosition.x = 1;
-        normalPosition.y = 1;
-        normalPosition.z = 1;
-        pcl::PointXYZ point;
-        point.x = 1;
-        point.y = 1;
-        point.z = 0;
-        std::cout << "Should be one : " << getPoint2PlaneDistance(normal, normalPosition, point) << std::endl;
 
-        point.x = 0;
-        point.y = 1;
-        point.z = 1;
 
-        std::cout << "Should be zero : " << getPoint2PlaneDistance(normal, normalPosition, point) << std::endl;
 
-    }
-
-    void testGetPlaneJacobi()
-    {
-        float theta[6];
-        for (int i=0;i<6;i++)
-            theta[i] = 0.0f;
-
-        pcl::PointXYZ normal;
-        normal.x = 0;
-        normal.y = 0;
-        normal.z = 1;
-        pcl::PointXYZ normalPosition;
-        normalPosition.x = 1;
-        normalPosition.y = 1;
-        normalPosition.z = 1;
-        pcl::PointXYZ point;
-        point.x = 1;
-        point.y = 1;
-        point.z = 0;
-
-        std::cout << "Should be something: " << getPlaneJacobi(theta, normal, normalPosition, point) << std::endl;
-
-        theta[2] = 1.0f;
-
-        std::cout << "Should be zero: " << getPlaneJacobi(theta, normal, normalPosition, point) << std::endl;
-
-    }
 };

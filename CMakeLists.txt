@@ -100,11 +100,17 @@ target_link_libraries(loam ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 #rosbuild_add_executable(main_KITTI ${catkin_LIBRARIES} src/main_KITTI.cpp)
 #target_link_libraries(main_KITTI ${catkin_LIBRARIES} ${OpenCV_LIBS} loam ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
-rosbuild_add_executable(main_testICP ${catkin_LIBRARIES} src/main_testICP.cpp)
-target_link_libraries(main_testICP ${catkin_LIBRARIES} ${OpenCV_LIBS} loam ${PCL_LIBRARIES} ${CERES_LIBRARIES})
+#rosbuild_add_executable(main_testICP ${catkin_LIBRARIES} src/main_testICP.cpp)
+#target_link_libraries(main_testICP ${catkin_LIBRARIES} ${OpenCV_LIBS} loam ${PCL_LIBRARIES} ${CERES_LIBRARIES})
+
+#rosbuild_add_executable(main_pcl_icp ${catkin_LIBRARIES} src/main_pcl_icp.cpp)
+#target_link_libraries(main_pcl_icp ${catkin_LIBRARIES} ${OpenCV_LIBS} loam ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 #rosbuild_add_executable(main_ceres ${catkin_LIBRARIES} src/main_ceres.cpp)
 #target_link_libraries(main_ceres ${catkin_LIBRARIES} ${OpenCV_LIBS} loam ${PCL_LIBRARIES} ${CERES_LIBRARIES})
+
+rosbuild_add_executable(main_openloam ${catkin_LIBRARIES} src/main_openloams.cpp)
+target_link_libraries(main_openloam ${catkin_LIBRARIES} ${OpenCV_LIBS} loam ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
 #rosbuild_add_executable(main_eval src/util/evaluate_odometry.cpp)
 #target_link_libraries(main_eval loam ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})

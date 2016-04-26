@@ -20,7 +20,10 @@ a_z = a(3);
 
 J = ( 2 * a_x * [1 0 0 a_x_theta(theta(4),theta(5),theta(6),point_k1)'] * d_2_x ...
     + 2 * a_y * [0 1 0 a_y_theta(theta(4),theta(5),theta(6),point_k1)'] * d_2_y ...
-    + 2 * a_z * [0 0 1 a_z_theta(theta(4),theta(5),theta(6),point_k1)'] * d_2_z) / n;
+    + 2 * a_z * [0 0 1 a_z_theta(theta(4),theta(5),theta(6),point_k1)'] * d_2_z) / sqrt(n);
+
+J = (1 / (2 * norm(a' * normal_k'))) * J;
+
 end
 
 function r = w_11(phi,theta,psi)
